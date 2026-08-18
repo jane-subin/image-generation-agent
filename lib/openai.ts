@@ -64,24 +64,19 @@ export async function generateComposite(
 ): Promise<Buffer> {
   const prompt = buildComposePrompt(sceneDescription);
 
-  const params: Record<string, unknown> = {
+  const params: OpenAI.ImageEditParamsNonStreaming = {
     model: IMAGE_MODEL,
     image: productFile,
     prompt,
     n: 1,
     size: "auto",
     quality: "high",
+    // gpt-image-2 has no input_fidelity knob (always high-fidelity) and rejects the
+    // field if set; only gpt-image-1 needs this explicitly set to "high".
+    input_fidelity: IMAGE_MODEL === "gpt-image-1" ? "high" : undefined,
   };
 
-  // gpt-image-1 fallback path: gpt-image-2 has no input_fidelity knob (always high-fidelity),
-  // but if OPENAI_IMAGE_MODEL is switched back to gpt-image-1, this keeps product fidelity high.
-  if (IMAGE_MODEL === "gpt-image-1") {
-    params.input_fidelity = "high";
-  }
-
-  const response = await openai.images.edit(
-    params as Parameters<typeof openai.images.edit>[0],
-  );
+  const response = await openai.images.edit(params);
   const b64 = response.data?.[0]?.b64_json;
   if (!b64) {
     throw new Error("이미지 생성에 실패했습니다.");
