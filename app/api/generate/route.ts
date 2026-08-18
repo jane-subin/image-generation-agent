@@ -5,9 +5,9 @@ import { supabaseAdmin, RESULTS_BUCKET } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 // Two sequential OpenAI calls (vision description + high-quality image edit) plus
-// a Supabase upload can exceed 60s. Vercel's Fluid Compute (default on new
-// projects) allows up to 300s even on the Hobby plan.
-export const maxDuration = 120;
+// a Supabase upload can vary a lot in latency depending on image complexity.
+// Set close to Vercel's Hobby-plan-with-Fluid-Compute ceiling (300s) for headroom.
+export const maxDuration = 280;
 
 // Combined request body must stay well under Vercel's 4.5MB hard cap.
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
