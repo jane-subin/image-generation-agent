@@ -139,7 +139,7 @@ export default function Home() {
           disabled={!canSubmit}
           className="rounded-lg bg-stone-900 px-4 py-3 font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {loading ? "생성 중… (최대 1분 정도 걸릴 수 있어요)" : "이미지 생성"}
+          {loading ? "생성 중… (최대 2분 정도 걸릴 수 있어요)" : "이미지 생성"}
         </button>
       </form>
 

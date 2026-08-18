@@ -4,7 +4,10 @@ import { describeReferenceScene, generateComposite } from "@/lib/openai";
 import { supabaseAdmin, RESULTS_BUCKET } from "@/lib/supabase";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Two sequential OpenAI calls (vision description + high-quality image edit) plus
+// a Supabase upload can exceed 60s. Vercel's Fluid Compute (default on new
+// projects) allows up to 300s even on the Hobby plan.
+export const maxDuration = 120;
 
 // Combined request body must stay well under Vercel's 4.5MB hard cap.
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
