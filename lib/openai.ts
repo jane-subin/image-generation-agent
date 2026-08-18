@@ -1,6 +1,14 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazily constructed so importing this module (e.g. Next.js collecting route
+// config at build time) never fails just because env vars aren't loaded yet.
+let _openai: OpenAI | null = null;
+function client(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openai;
+}
 
 const VISION_MODEL = process.env.OPENAI_VISION_MODEL ?? "gpt-5.6-luna";
 const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2";
@@ -29,7 +37,7 @@ async function fileToDataUrl(file: File): Promise<string> {
 export async function describeReferenceScene(referenceFile: File): Promise<string> {
   const dataUrl = await fileToDataUrl(referenceFile);
 
-  const response = await openai.chat.completions.create({
+  const response = await client().chat.completions.create({
     model: VISION_MODEL,
     messages: [
       { role: "system", content: DESCRIBE_SYSTEM_PROMPT },
@@ -76,7 +84,7 @@ export async function generateComposite(
     input_fidelity: IMAGE_MODEL === "gpt-image-1" ? "high" : undefined,
   };
 
-  const response = await openai.images.edit(params);
+  const response = await client().images.edit(params);
   const b64 = response.data?.[0]?.b64_json;
   if (!b64) {
     throw new Error("이미지 생성에 실패했습니다.");

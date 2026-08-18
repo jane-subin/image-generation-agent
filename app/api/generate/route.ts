@@ -48,15 +48,15 @@ export async function POST(req: Request) {
     const imageBuffer = await generateComposite(productImage as File, sceneDescription);
 
     const path = `${randomUUID()}.png`;
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from(RESULTS_BUCKET)
+    const { error: uploadError } = await supabaseAdmin()
+      .storage.from(RESULTS_BUCKET)
       .upload(path, imageBuffer, { contentType: "image/png", upsert: false });
 
     if (uploadError) {
       return errorResponse("STORAGE_ERROR", "생성된 이미지를 저장하지 못했습니다.", 502);
     }
 
-    const { data } = supabaseAdmin.storage.from(RESULTS_BUCKET).getPublicUrl(path);
+    const { data } = supabaseAdmin().storage.from(RESULTS_BUCKET).getPublicUrl(path);
     return NextResponse.json({ imageUrl: data.publicUrl, sceneDescription });
   } catch (err: unknown) {
     const e = err as { status?: number; error?: { message?: string }; message?: string };
