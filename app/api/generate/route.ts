@@ -30,8 +30,16 @@ export async function POST(req: Request) {
   if (!process.env.OPENAI_API_KEY) {
     return errorResponse("SERVER_MISCONFIGURED", "OPENAI_API_KEY가 설정되지 않았습니다.", 500);
   }
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return errorResponse("SERVER_MISCONFIGURED", "Supabase 환경변수가 설정되지 않았습니다.", 500);
+  const missingSupabaseVars = [
+    !process.env.NEXT_PUBLIC_SUPABASE_URL && "NEXT_PUBLIC_SUPABASE_URL",
+    !process.env.SUPABASE_SERVICE_ROLE_KEY && "SUPABASE_SERVICE_ROLE_KEY",
+  ].filter((v): v is string => Boolean(v));
+  if (missingSupabaseVars.length > 0) {
+    return errorResponse(
+      "SERVER_MISCONFIGURED",
+      `다음 환경변수가 비어있습니다: ${missingSupabaseVars.join(", ")}`,
+      500,
+    );
   }
 
   const form = await req.formData();
