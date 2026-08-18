@@ -26,6 +26,25 @@ function validateImageField(file: FormDataEntryValue | null, label: string) {
   return null;
 }
 
+// TEMPORARY diagnostic endpoint — reports presence/length only, never the actual
+// secret values. Visit GET /api/generate directly in the browser to check what
+// Vercel is actually injecting, without needing to re-upload files each time.
+export async function GET() {
+  function describe(name: string) {
+    const value = process.env[name];
+    return { name, present: value != null, length: value?.length ?? 0 };
+  }
+  return NextResponse.json({
+    vars: [
+      describe("OPENAI_API_KEY"),
+      describe("OPENAI_VISION_MODEL"),
+      describe("OPENAI_IMAGE_MODEL"),
+      describe("NEXT_PUBLIC_SUPABASE_URL"),
+      describe("SUPABASE_SERVICE_ROLE_KEY"),
+    ],
+  });
+}
+
 export async function POST(req: Request) {
   if (!process.env.OPENAI_API_KEY) {
     return errorResponse("SERVER_MISCONFIGURED", "OPENAI_API_KEY가 설정되지 않았습니다.", 500);
