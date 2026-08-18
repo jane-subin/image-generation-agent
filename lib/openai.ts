@@ -15,7 +15,7 @@ const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2";
 
 const DESCRIBE_SYSTEM_PROMPT = `당신은 화보/광고 사진을 분석해서 이미지 생성용 프롬프트를 작성하는 전문가입니다.
 첨부된 레퍼런스 사진을 보고, 아래 항목을 모두 포함한 하나의 상세한 문단을 한국어로 작성하세요:
-- 등장 인물의 외모(헤어, 피부톤, 표정)와 스타일링(의상, 액세서리)
+- 등장 인물의 외모(인종/민족적 특징, 추정 연령대, 헤어, 피부톤, 표정)와 스타일링(의상, 액세서리)
 - 인물의 포즈와 동작, 인물 간의 상호작용
 - 배경/장소, 시간대
 - 전체적인 분위기와 무드
@@ -77,7 +77,9 @@ export async function generateComposite(
     image: productFile,
     prompt,
     n: 1,
-    size: "auto",
+    // 3:4 portrait ratio. gpt-image-2 requires both edges to be multiples of 16;
+    // 1152x1536 = exactly 3:4 (1152/1536 = 0.75).
+    size: "1152x1536",
     quality: "high",
     // gpt-image-2 has no input_fidelity knob (always high-fidelity) and rejects the
     // field if set; only gpt-image-1 needs this explicitly set to "high".
