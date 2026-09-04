@@ -18,22 +18,22 @@ function ImageDropField({
 }) {
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-sm font-medium text-stone-700">{label}</span>
-      <div className="flex h-48 items-center justify-center overflow-hidden rounded-lg border border-dashed border-stone-300 bg-white">
+      <span className="text-sm font-medium text-violet-700">{label}</span>
+      <div className="flex h-48 items-center justify-center overflow-hidden rounded-xl border border-dashed border-violet-200 bg-white/80">
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={preview} alt={label} className="h-full w-full object-contain" />
         ) : (
-          <span className="text-sm text-stone-400">클릭해서 이미지 선택</span>
+          <span className="text-sm text-violet-300">클릭해서 이미지 선택</span>
         )}
       </div>
       <input
         type="file"
         accept="image/*"
-        className="text-sm"
+        className="text-sm text-violet-600 file:mr-3 file:rounded-md file:border-0 file:bg-violet-100 file:px-3 file:py-1.5 file:text-violet-700 hover:file:bg-violet-200"
         onChange={(e) => onChange(e.target.files?.[0] ?? null)}
       />
-      {file && <span className="text-xs text-stone-400">{file.name}</span>}
+      {file && <span className="text-xs text-violet-300">{file.name}</span>}
     </label>
   );
 }
@@ -110,56 +110,60 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-8 p-8">
-      <div>
-        <h1 className="text-2xl font-bold text-stone-900">이미지 생성 에이전트</h1>
-        <p className="mt-1 text-sm text-stone-500">
-          레퍼런스 이미지와 제품 사진을 첨부하면, 레퍼런스의 스타일로 제품 화보컷을 생성합니다.
-        </p>
-      </div>
-
-      <form onSubmit={onSubmit} className="flex flex-col gap-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <ImageDropField
-            label="레퍼런스 이미지"
-            file={referenceFile}
-            preview={referencePreview}
-            onChange={handleReferenceChange}
-          />
-          <ImageDropField
-            label="제품 사진"
-            file={productFile}
-            preview={productPreview}
-            onChange={handleProductChange}
-          />
+    <main className="min-h-screen bg-gradient-to-br from-violet-50 via-fuchsia-50 to-sky-50 px-4 py-10">
+      <div className="mx-auto flex max-w-2xl flex-col gap-8 rounded-3xl border border-white/60 bg-white/60 p-8 shadow-sm shadow-violet-100 backdrop-blur-sm">
+        <div>
+          <h1 className="text-2xl font-bold text-violet-900">이미지 생성 에이전트</h1>
+          <p className="mt-1 text-sm text-violet-400">
+            레퍼런스 이미지와 제품 사진을 첨부하면, 레퍼런스의 스타일로 제품 화보컷을 생성합니다.
+          </p>
         </div>
 
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="rounded-lg bg-stone-900 px-4 py-3 font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {loading ? "생성 중… (이미지에 따라 최대 4~5분 정도 걸릴 수 있어요)" : "이미지 생성"}
-        </button>
-      </form>
+        <form onSubmit={onSubmit} className="flex flex-col gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <ImageDropField
+              label="레퍼런스 이미지"
+              file={referenceFile}
+              preview={referencePreview}
+              onChange={handleReferenceChange}
+            />
+            <ImageDropField
+              label="제품 사진"
+              file={productFile}
+              preview={productPreview}
+              onChange={handleProductChange}
+            />
+          </div>
 
-      {error && (
-        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error.message}</p>
-      )}
-
-      {resultUrl && (
-        <div className="flex flex-col gap-3 rounded-lg border border-stone-200 bg-white p-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={resultUrl} alt="생성된 이미지" className="w-full rounded-lg" />
           <button
-            type="button"
-            onClick={handleDownload}
-            className="self-start rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white"
+            type="submit"
+            disabled={!canSubmit}
+            className="rounded-xl bg-gradient-to-r from-violet-300 to-pink-300 px-4 py-3 font-medium text-violet-950 transition hover:from-violet-400 hover:to-pink-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            이미지 다운로드
+            {loading ? "생성 중… (이미지에 따라 최대 4~5분 정도 걸릴 수 있어요)" : "이미지 생성"}
           </button>
-        </div>
-      )}
+        </form>
+
+        {error && (
+          <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">
+            {error.message}
+          </p>
+        )}
+
+        {resultUrl && (
+          <div className="flex flex-col gap-3 rounded-2xl border border-violet-100 bg-white/90 p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={resultUrl} alt="생성된 이미지" className="w-full rounded-xl" />
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="self-start rounded-xl bg-gradient-to-r from-pink-200 to-violet-200 px-4 py-2 text-sm font-medium text-violet-950 transition hover:from-pink-300 hover:to-violet-300"
+            >
+              이미지 다운로드
+            </button>
+          </div>
+        )}
+      </div>
     </main>
   );
 }
