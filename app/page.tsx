@@ -18,22 +18,22 @@ function ImageDropField({
 }) {
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-sm font-medium text-blue-900">{label}</span>
+      <span className="text-base font-medium text-blue-900">{label}</span>
       <div className="flex h-48 items-center justify-center overflow-hidden rounded-xl border border-dashed border-sky-200 bg-white/80">
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={preview} alt={label} className="h-full w-full object-contain" />
         ) : (
-          <span className="text-sm text-sky-300">클릭해서 이미지 선택</span>
+          <span className="text-sm text-gray-400">클릭해서 이미지 선택</span>
         )}
       </div>
       <input
         type="file"
         accept="image/*"
-        className="text-sm text-blue-800 file:mr-3 file:rounded-md file:border-0 file:bg-sky-100 file:px-3 file:py-1.5 file:text-blue-800 hover:file:bg-sky-200"
+        className="text-sm text-gray-400 file:mr-3 file:rounded-md file:border-0 file:bg-sky-100 file:px-3 file:py-1.5 file:text-blue-800 hover:file:bg-sky-200"
         onChange={(e) => onChange(e.target.files?.[0] ?? null)}
       />
-      {file && <span className="text-xs text-blue-300">{file.name}</span>}
+      {file && <span className="text-xs text-gray-400">{file.name}</span>}
     </label>
   );
 }
@@ -114,7 +114,7 @@ export default function Home() {
       <div className="mx-auto flex max-w-2xl flex-col gap-8 rounded-3xl border border-white/60 bg-white/60 p-8 shadow-sm shadow-sky-100 backdrop-blur-sm">
         <div>
           <h1 className="text-2xl font-bold text-blue-950">이미지 생성 에이전트</h1>
-          <p className="mt-1 text-sm text-blue-600">
+          <p className="mt-1 text-sm text-gray-500">
             레퍼런스 이미지와 제품 사진을 첨부하면, 레퍼런스의 스타일로 제품 화보컷을 생성합니다.
           </p>
         </div>
