@@ -288,9 +288,9 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-cyan-50 px-4 py-6">
       <div className="mx-auto flex max-w-6xl flex-col gap-4">
-        <div>
+        <div className="py-8">
           <h1 className="text-2xl font-bold text-blue-950">이미지 생성 에이전트</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-gray-500">
             이미지를 첨부하고 각 레퍼런스 이미지에 사용할 프롬프트 종류를 선택하세요. 프롬프트를 확인한 뒤 이미지를 생성합니다.
           </p>
         </div>
