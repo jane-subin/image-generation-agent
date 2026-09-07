@@ -65,7 +65,11 @@ export async function POST(req: Request) {
       .upload(path, imageBuffer, { contentType: "image/png", upsert: false });
 
     if (uploadError) {
-      return errorResponse("STORAGE_ERROR", "생성된 이미지를 저장하지 못했습니다.", 502);
+      return errorResponse(
+        "STORAGE_ERROR",
+        `생성된 이미지를 저장하지 못했습니다: ${uploadError.message}`,
+        502,
+      );
     }
 
     const { data } = supabaseAdmin().storage.from(RESULTS_BUCKET).getPublicUrl(path);
