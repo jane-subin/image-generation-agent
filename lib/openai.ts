@@ -41,7 +41,7 @@ ${SHARED_GUARD}`,
 ${SHARED_GUARD}`,
 
   background: `당신은 화보 촬영을 위해 사진의 '배경'만 분석하는 전문가입니다.
-아래 항목만 상세히 묘사하라: 장소/공간, 시간대, 그 장소가 자아내는 전체적인 분위기.
+아래 항목만 상세히 묘사하라: 장소/공간, 그 장소가 자아내는 전체적인 분위기.
 인물의 외모, 의상, 포즈, 조명 디테일, 카메라 구도 등 배경 이외의 요소는 절대 언급하지 마라.
 ${SHARED_GUARD}`,
 
@@ -65,7 +65,7 @@ ${SHARED_GUARD}`,
 
   mood: `당신은 화보 촬영을 위해 사진의 '배경', '촬영 기법', '카메라 구도'를 종합적으로 분석하는 전문가입니다.
 아래 세 항목을 모두 포함해 하나의 문단으로 상세히 묘사하라:
-- 배경: 장소/공간, 시간대, 전체적인 분위기
+- 배경: 장소/공간, 전체적인 분위기
 - 촬영 기법: 조명의 방향과 질감, 사진의 색감과 톤앤매너, 카메라 종류로 추정되는 특성, 렌즈 특성(피사계심도 등)
 - 카메라 구도: 샷 사이즈, 카메라 앵글, 프레이밍 방식
 인물의 외모, 의상, 포즈 등 위 세 항목 이외의 요소는 절대 언급하지 마라.
@@ -121,7 +121,7 @@ export function buildComposePrompt(sections: PromptSection[]): string {
 
   return `첨부된 제품 사진 속 제품을 정확히 그대로 활용하여, 포토리얼리스틱한 화보/광고 사진 한 장을 생성하라.
 
-이미지에 들어갈 묘사 - vellus hair, subsurface scattering, micro-imperfections, natural lighting, depth of field, film grain/noise, 실제 고화질 촬영 사진. 사실적인 사진.
+이미지에 들어갈 묘사 - vellus hair, subsurface scattering, micro-imperfections, natural lighting, depth of field, film grain, 실제 고화질 촬영 사진. 사실적인 사진.
 
 [장면 설정]
 ${sceneBlock}`;
