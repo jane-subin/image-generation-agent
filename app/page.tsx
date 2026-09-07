@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { resizeImageFile } from "@/lib/resizeImage";
-import { CARD_GROUPS, fieldNameFor, type StyleCardKey } from "@/lib/cardConfig";
+import { CARD_GROUPS, STANDALONE_CARDS, fieldNameFor, type StyleCardKey } from "@/lib/cardConfig";
 
 type ApiError = { code: string; message: string };
 type Tone = "product" | "reference" | "aggregate";
@@ -41,10 +41,24 @@ function ImageDropField({
     <label className="flex flex-col gap-2">
       <span className={`text-base font-medium ${c.label}`}>{label}</span>
       {hint && <span className="-mt-1 text-xs text-gray-400">{hint}</span>}
-      <div className="flex h-36 items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white/70">
+      <div className="relative flex h-36 items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white/70">
         {preview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt={label} className="h-full w-full object-contain" />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt={label} className="h-full w-full object-contain" />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onChange(null);
+              }}
+              className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-xs text-gray-600 shadow hover:bg-rose-50 hover:text-rose-500"
+              aria-label="이미지 삭제"
+            >
+              ✕
+            </button>
+          </>
         ) : (
           <span className="text-sm text-gray-400">클릭해서 이미지 선택</span>
         )}
@@ -104,10 +118,10 @@ export default function Home() {
     resetResult();
 
     try {
-      const allCardKeys: StyleCardKey[] = CARD_GROUPS.flatMap((g) => [
-        g.aggregateKey,
-        ...g.individual.map((c) => c.key),
-      ]);
+      const allCardKeys: StyleCardKey[] = [
+        ...STANDALONE_CARDS.map((c) => c.key),
+        ...CARD_GROUPS.flatMap((g) => [g.aggregateKey, ...g.individual.map((c) => c.key)]),
+      ];
       const filledStyleEntries = allCardKeys
         .filter((key) => styleFiles[key])
         .map((key) => ({ key, file: styleFiles[key]! }));
@@ -197,15 +211,29 @@ export default function Home() {
         </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-8">
-          <Card tone="product">
-            <ImageDropField
-              label="제품 사진 (필수)"
-              tone="product"
-              file={productFile}
-              preview={productPreview}
-              onChange={handleProductChange}
-            />
-          </Card>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Card tone="product">
+              <ImageDropField
+                label="제품 사진 (필수)"
+                tone="product"
+                file={productFile}
+                preview={productPreview}
+                onChange={handleProductChange}
+              />
+            </Card>
+            {STANDALONE_CARDS.map((card) => (
+              <Card key={card.key} tone="reference">
+                <ImageDropField
+                  label={card.label}
+                  hint={card.hint}
+                  tone="reference"
+                  file={styleFiles[card.key] ?? null}
+                  preview={stylePreviews[card.key] ?? null}
+                  onChange={(file) => handleStyleChange(card.key, file)}
+                />
+              </Card>
+            ))}
+          </div>
 
           {CARD_GROUPS.map((group) => (
             <div key={group.aggregateKey} className="flex flex-col gap-2">

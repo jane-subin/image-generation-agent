@@ -2,6 +2,16 @@
 // field names) and the server (parsing those same field names). `emoji` is
 // UI decoration only — `label` (plain text) is what actually goes into the
 // generation prompt, so it stays emoji-free.
+
+// Cards shown standalone (next to the product photo), not part of either group.
+export const STANDALONE_CARDS = [
+  {
+    key: "placement",
+    label: "제품 위치",
+    hint: "제품의 위치, 줌인/줌아웃 정도, 화면 비중, 촬영 각도",
+  },
+] as const;
+
 export const CARD_GROUPS = [
   {
     aggregateKey: "model",
@@ -28,6 +38,7 @@ export const CARD_GROUPS = [
 ] as const;
 
 export type StyleCardKey =
+  | (typeof STANDALONE_CARDS)[number]["key"]
   | (typeof CARD_GROUPS)[number]["aggregateKey"]
   | (typeof CARD_GROUPS)[number]["individual"][number]["key"];
 
@@ -35,8 +46,9 @@ export function fieldNameFor(key: StyleCardKey): string {
   return `${key}Image`;
 }
 
-// Flat list of every optional card (aggregate + individual) with a label, for
-// the API route's generic per-field validation/collection loop.
-export const ALL_STYLE_CARDS: { key: StyleCardKey; label: string }[] = CARD_GROUPS.flatMap(
-  (group) => [{ key: group.aggregateKey, label: group.aggregateLabel }, ...group.individual],
-);
+// Flat list of every optional card (standalone + aggregate + individual) with
+// a label, for the API route's generic per-field validation/collection loop.
+export const ALL_STYLE_CARDS: { key: StyleCardKey; label: string }[] = [
+  ...STANDALONE_CARDS,
+  ...CARD_GROUPS.flatMap((group) => [{ key: group.aggregateKey, label: group.aggregateLabel }, ...group.individual]),
+];
