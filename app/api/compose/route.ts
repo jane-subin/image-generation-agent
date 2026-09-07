@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { describeCard, buildComposePrompt, translatePrompt, type PromptSection } from "@/lib/openai";
+import { describeCard, buildComposePrompt, type PromptSection } from "@/lib/openai";
 import { fetchGoodExamples } from "@/lib/supabase";
 import { REFERENCE_SLOT_COUNT, CATEGORY_LABEL, type StyleCardKey } from "@/lib/cardConfig";
 import { errorResponse, validateImageField, MAX_TOTAL_BYTES } from "@/lib/validateImage";
@@ -95,9 +95,8 @@ export async function POST(req: Request) {
     );
 
     const koreanPrompt = buildComposePrompt(sections);
-    const englishPrompt = await translatePrompt(koreanPrompt).catch(() => "");
 
-    return NextResponse.json({ sections, koreanPrompt, englishPrompt });
+    return NextResponse.json({ sections, koreanPrompt });
   } catch (err: unknown) {
     const e = err as { status?: number; error?: { message?: string }; message?: string };
     const status = typeof e?.status === "number" ? e.status : 502;

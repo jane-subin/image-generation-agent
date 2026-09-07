@@ -142,24 +142,6 @@ ${REALISM_KEYWORDS.join(", ")}
 ${sceneBlock}`;
 }
 
-// Reference-only translation shown to the user alongside the Korean prompt —
-// the actual generation call always uses the Korean text rebuilt server-side
-// from `sections`, never this translated string.
-export async function translatePrompt(koreanPrompt: string): Promise<string> {
-  const response = await client().chat.completions.create({
-    model: VISION_MODEL,
-    messages: [
-      {
-        role: "system",
-        content:
-          "다음은 AI 이미지 생성에 쓰일 한국어 프롬프트다. 구조(대괄호 섹션 제목 등)와 의미를 그대로 유지하면서 자연스러운 영어로 번역하라. 번역문 외의 다른 말은 출력하지 마라.",
-      },
-      { role: "user", content: koreanPrompt },
-    ],
-  });
-  return response.choices[0]?.message?.content?.trim() ?? "";
-}
-
 export async function generateComposite(productFile: File, prompt: string): Promise<Buffer> {
   const params: OpenAI.ImageEditParamsNonStreaming = {
     model: IMAGE_MODEL,

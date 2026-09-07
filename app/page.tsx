@@ -46,12 +46,31 @@ function ImageDropField({
   compact?: boolean;
 }) {
   const c = TONE_CLASSES[tone];
+  const [isDragging, setIsDragging] = useState(false);
+
+  function handleDroppedFiles(files: FileList | null) {
+    const f = files?.[0];
+    if (f && f.type.startsWith("image/")) onChange(f);
+  }
+
   return (
     <label className="flex flex-col gap-1.5">
       <span className={`text-sm font-medium ${c.label}`}>{label}</span>
       {hint && <span className="-mt-1 text-xs text-gray-400">{hint}</span>}
       <div
-        className={`relative flex ${compact ? "h-20" : "h-36"} items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white/70`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          handleDroppedFiles(e.dataTransfer.files);
+        }}
+        className={`relative flex ${compact ? "h-20" : "h-36"} items-center justify-center overflow-hidden rounded-xl border border-dashed transition-colors ${
+          isDragging ? "border-blue-400 bg-blue-50/60" : "border-gray-300 bg-white/70"
+        }`}
       >
         {preview ? (
           <>
@@ -71,7 +90,7 @@ function ImageDropField({
             </button>
           </>
         ) : (
-          <span className="text-xs text-gray-400">클릭해서 이미지 선택</span>
+          <span className="px-2 text-center text-xs text-gray-400">클릭하거나 드래그해서 이미지 선택</span>
         )}
       </div>
       <input
@@ -107,7 +126,6 @@ export default function Home() {
   const [composeError, setComposeError] = useState<ApiError | null>(null);
   const [composedSections, setComposedSections] = useState<Section[] | null>(null);
   const [koreanPrompt, setKoreanPrompt] = useState("");
-  const [englishPrompt, setEnglishPrompt] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [generateError, setGenerateError] = useState<ApiError | null>(null);
@@ -119,7 +137,6 @@ export default function Home() {
   function resetCompose() {
     setComposedSections(null);
     setKoreanPrompt("");
-    setEnglishPrompt("");
     setComposeError(null);
   }
 
@@ -204,7 +221,6 @@ export default function Home() {
       }
       setComposedSections(json.sections ?? []);
       setKoreanPrompt(json.koreanPrompt ?? "");
-      setEnglishPrompt(json.englishPrompt ?? "");
     } catch {
       setComposeError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
     } finally {
@@ -384,24 +400,14 @@ export default function Home() {
                 왼쪽에서 이미지를 첨부하고 카테고리를 선택한 뒤 &ldquo;프롬프트 생성&rdquo;을 눌러주세요.
               </p>
             ) : (
-              <>
-                <div className="flex flex-col gap-1">
-                  <p className="text-xs font-medium text-gray-500">한국어</p>
-                  <textarea
-                    readOnly
-                    value={koreanPrompt}
-                    className="h-28 w-full resize-none rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <p className="text-xs font-medium text-gray-500">English</p>
-                  <textarea
-                    readOnly
-                    value={englishPrompt}
-                    className="h-28 w-full resize-none rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700"
-                  />
-                </div>
-              </>
+              <div className="flex flex-1 flex-col gap-1">
+                <p className="text-xs font-medium text-gray-500">한국어</p>
+                <textarea
+                  readOnly
+                  value={koreanPrompt}
+                  className="h-64 w-full resize-none rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700"
+                />
+              </div>
             )}
 
             <button
