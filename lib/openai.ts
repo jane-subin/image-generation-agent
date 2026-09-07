@@ -112,17 +112,6 @@ export async function describeCard(
   return description;
 }
 
-const REALISM_KEYWORDS = [
-  "iPhone camera",
-  "skin pores",
-  "vellus hair",
-  "subsurface scattering",
-  "micro-imperfections",
-  "natural lighting",
-  "depth of field",
-  "film grain/noise",
-];
-
 export type PromptSection = { key: StyleCardKey; label: string; text: string };
 
 export function buildComposePrompt(sections: PromptSection[]): string {
@@ -132,13 +121,7 @@ export function buildComposePrompt(sections: PromptSection[]): string {
 
   return `첨부된 제품 사진 속 제품을 정확히 그대로 활용하여, 포토리얼리스틱한 화보/광고 사진 한 장을 생성하라.
 
-[필수 규칙]
-- 제품이 한눈에 잘 보이도록 화면 중앙 쪽에 배치하라.
-- 배경 요소는 복잡하지 않게 단순화하거나 아웃포커싱(보케) 처리하라.
-- 제품의 형태, 색상, 로고, 브랜딩, 비율은 첨부 사진과 완전히 동일하게 유지하고 절대 변형하지 마라.
-
-[사실적 묘사 참고 키워드] (아래 장면 설정과 어울리는 것만 자연스럽게 반영하라, 전부 억지로 넣지 말 것)
-${REALISM_KEYWORDS.join(", ")}
+이미지에 들어갈 묘사 - vellus hair, subsurface scattering, micro-imperfections, natural lighting, depth of field, film grain/noise, 실제 고화질 촬영 사진. 사실적인 사진.
 
 [장면 설정]
 ${sceneBlock}`;
@@ -150,9 +133,9 @@ export async function generateComposite(productFile: File, prompt: string): Prom
     image: productFile,
     prompt,
     n: 1,
-    // 3:4 portrait ratio. gpt-image-2 requires both edges to be multiples of 16;
-    // 1152x1536 = exactly 3:4 (1152/1536 = 0.75).
-    size: "1152x1536",
+    // 3:4 portrait ratio at a higher resolution for more detail. gpt-image-2
+    // requires both edges to be multiples of 16; 1536x2048 = exactly 3:4.
+    size: "1536x2048",
     quality: "high",
     // gpt-image-2 has no input_fidelity knob (always high-fidelity) and rejects the
     // field if set; only gpt-image-1 needs this explicitly set to "high".
