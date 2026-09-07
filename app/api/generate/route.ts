@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-import { generateComposite, buildComposePrompt, type PromptSection } from "@/lib/openai";
+import { generateComposite, type PromptSection } from "@/lib/openai";
 import { supabaseAdmin, RESULTS_BUCKET } from "@/lib/supabase";
 import { errorResponse, validateImageField } from "@/lib/validateImage";
 
@@ -35,6 +35,14 @@ export async function POST(req: Request) {
   if (productError) return productError;
   const productFile = productImage as File;
 
+  const promptRaw = form.get("prompt");
+  if (typeof promptRaw !== "string" || !promptRaw.trim()) {
+    return errorResponse("MISSING_PROMPT", "prompt가 필요합니다.", 400);
+  }
+  const prompt = promptRaw;
+
+  // `sections` is kept only for the Gallery's per-category breakdown display
+  // and the few-shot example pool — it no longer drives the actual prompt.
   let sections: PromptSection[] = [];
   const sectionsRaw = form.get("sections");
   if (typeof sectionsRaw === "string" && sectionsRaw.length > 0) {
@@ -47,9 +55,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Rebuilt server-side from the structured sections — never trusts a
-    // client-supplied prompt string for the actual generation call.
-    const prompt = buildComposePrompt(sections);
+    // This app has a single trusted operator (no public users), so the
+    // prompt the user reviewed and possibly hand-edited is used as-is.
     const imageBuffer = await generateComposite(productFile, prompt);
 
     const path = `${randomUUID()}.png`;

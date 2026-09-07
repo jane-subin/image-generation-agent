@@ -240,6 +240,7 @@ export default function Home() {
 
       const body = new FormData();
       body.append("productImage", resizedProduct);
+      body.append("prompt", koreanPrompt);
       body.append("sections", JSON.stringify(composedSections));
 
       const res = await fetch("/api/generate", { method: "POST", body });
@@ -352,7 +353,7 @@ export default function Home() {
                     compact
                   />
                   {slot.file && (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-col gap-1">
                       {SELECTABLE_CATEGORIES.map((cat) => {
                         const selected = slot.categories.includes(cat.key);
                         return (
@@ -360,7 +361,7 @@ export default function Home() {
                             key={cat.key}
                             type="button"
                             onClick={() => toggleSlotCategory(i, cat.key)}
-                            className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium transition ${
+                            className={`rounded-md px-2 py-1 text-left text-sm font-medium transition ${
                               selected
                                 ? "bg-blue-900 text-white"
                                 : "border border-sky-200 bg-white text-blue-800 hover:bg-sky-100"
@@ -401,11 +402,11 @@ export default function Home() {
               </p>
             ) : (
               <div className="flex flex-1 flex-col gap-1">
-                <p className="text-xs font-medium text-gray-500">한국어</p>
+                <p className="text-xs font-medium text-gray-500">직접 수정할 수 있습니다</p>
                 <textarea
-                  readOnly
                   value={koreanPrompt}
-                  className="h-64 w-full resize-none rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700"
+                  onChange={(e) => setKoreanPrompt(e.target.value)}
+                  className="h-[34rem] w-full resize-none rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700"
                 />
               </div>
             )}

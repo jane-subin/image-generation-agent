@@ -59,12 +59,10 @@ export const CATEGORY_LABEL: Record<StyleCardKey, string> = Object.fromEntries(
   ALL_STYLE_CARDS.map((c) => [c.key, c.label]),
 ) as Record<StyleCardKey, string>;
 
-// The 8 categories selectable as tags on a reference-image slot (everything
-// except `placement`, which keeps its own dedicated standalone card).
+// The 6 individual categories selectable as tags on a reference-image slot
+// (the 모델 전체/무드 전체 aggregates aren't offered here anymore, and
+// `placement` keeps its own dedicated standalone card).
 export const SELECTABLE_CATEGORIES: { key: StyleCardKey; label: string; emoji: string }[] =
-  CARD_GROUPS.flatMap((group) => [
-    { key: group.aggregateKey, label: group.aggregateLabel, emoji: group.aggregateEmoji },
-    ...group.individual.map((c) => ({ key: c.key, label: c.label, emoji: c.emoji })),
-  ]);
+  CARD_GROUPS.flatMap((group) => group.individual.map((c) => ({ key: c.key, label: c.label, emoji: c.emoji })));
 
 export const REFERENCE_SLOT_COUNT = 4;
