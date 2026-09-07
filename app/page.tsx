@@ -3,12 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { resizeImageFile } from "@/lib/resizeImage";
-import {
-  STANDALONE_CARDS,
-  SELECTABLE_CATEGORIES,
-  REFERENCE_SLOT_COUNT,
-  type StyleCardKey,
-} from "@/lib/cardConfig";
+import { SELECTABLE_CATEGORIES, REFERENCE_SLOT_COUNT, type StyleCardKey } from "@/lib/cardConfig";
 
 type ApiError = { code: string; message: string };
 type Tone = "product" | "reference" | "aggregate";
@@ -117,9 +112,6 @@ export default function Home() {
   const [productFile, setProductFile] = useState<File | null>(null);
   const [productPreview, setProductPreview] = useState<string | null>(null);
 
-  const [placementFiles, setPlacementFiles] = useState<Partial<Record<StyleCardKey, File>>>({});
-  const [placementPreviews, setPlacementPreviews] = useState<Partial<Record<StyleCardKey, string>>>({});
-
   const [referenceSlots, setReferenceSlots] = useState<ReferenceSlot[]>(makeEmptySlots());
 
   const [composing, setComposing] = useState(false);
@@ -150,13 +142,6 @@ export default function Home() {
   function handleProductChange(file: File | null) {
     setProductFile(file);
     setProductPreview(file ? URL.createObjectURL(file) : null);
-    resetResult();
-  }
-
-  function handlePlacementChange(key: StyleCardKey, file: File | null) {
-    setPlacementFiles((prev) => ({ ...prev, [key]: file ?? undefined }));
-    setPlacementPreviews((prev) => ({ ...prev, [key]: file ? URL.createObjectURL(file) : undefined }));
-    resetCompose();
     resetResult();
   }
 
@@ -197,16 +182,12 @@ export default function Home() {
       const filledSlots = referenceSlots
         .map((slot, i) => ({ ...slot, index: i + 1 }))
         .filter((slot) => slot.file);
-      const placementCard = STANDALONE_CARDS[0];
-      const placementFile = placementFiles[placementCard.key];
 
-      const resizedPlacement = placementFile ? await resizeImageFile(placementFile) : null;
       const resizedSlots = await Promise.all(
         filledSlots.map((slot) => resizeImageFile(slot.file as File)),
       );
 
       const body = new FormData();
-      if (resizedPlacement) body.append("placementImage", resizedPlacement);
       filledSlots.forEach((slot, i) => {
         body.append(`reference${slot.index}Image`, resizedSlots[i]);
         body.append(`reference${slot.index}Categories`, JSON.stringify(slot.categories));
@@ -304,8 +285,6 @@ export default function Home() {
     resetResult();
   }
 
-  const placementCard = STANDALONE_CARDS[0];
-
   return (
     <main className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-cyan-50 px-4 py-6">
       <div className="mx-auto flex max-w-6xl flex-col gap-4">
@@ -319,27 +298,15 @@ export default function Home() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* LEFT: image attachment */}
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Card tone="product">
-                <ImageDropField
-                  label="제품 사진 (필수)"
-                  tone="product"
-                  file={productFile}
-                  preview={productPreview}
-                  onChange={handleProductChange}
-                />
-              </Card>
-              <Card tone="reference">
-                <ImageDropField
-                  label={placementCard.label}
-                  hint={placementCard.hint}
-                  tone="reference"
-                  file={placementFiles[placementCard.key] ?? null}
-                  preview={placementPreviews[placementCard.key] ?? null}
-                  onChange={(file) => handlePlacementChange(placementCard.key, file)}
-                />
-              </Card>
-            </div>
+            <Card tone="product">
+              <ImageDropField
+                label="제품 사진 (필수)"
+                tone="product"
+                file={productFile}
+                preview={productPreview}
+                onChange={handleProductChange}
+              />
+            </Card>
 
             <div className="grid grid-cols-2 gap-3">
               {referenceSlots.map((slot, i) => (

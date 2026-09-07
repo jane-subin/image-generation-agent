@@ -32,15 +32,6 @@ export async function POST(req: Request) {
   const workItems: { file: File; category: StyleCardKey }[] = [];
   const attachedFiles: File[] = [];
 
-  const placementEntry = form.get("placementImage");
-  if (placementEntry != null) {
-    const err = validateImageField(placementEntry, "제품 위치");
-    if (err) return err;
-    const file = placementEntry as File;
-    attachedFiles.push(file);
-    workItems.push({ file, category: "placement" });
-  }
-
   for (let i = 1; i <= REFERENCE_SLOT_COUNT; i++) {
     const fileEntry = form.get(`reference${i}Image`);
     if (fileEntry == null) continue;

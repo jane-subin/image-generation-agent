@@ -3,15 +3,6 @@
 // UI decoration only — `label` (plain text) is what actually goes into the
 // generation prompt, so it stays emoji-free.
 
-// Cards shown standalone (next to the product photo), not part of either group.
-export const STANDALONE_CARDS = [
-  {
-    key: "placement",
-    label: "제품 위치",
-    hint: "제품의 위치, 줌인/줌아웃 정도, 화면 비중, 촬영 각도",
-  },
-] as const;
-
 export const CARD_GROUPS = [
   {
     aggregateKey: "model",
@@ -38,7 +29,7 @@ export const CARD_GROUPS = [
 ] as const;
 
 export type StyleCardKey =
-  | (typeof STANDALONE_CARDS)[number]["key"]
+  | "placement"
   | (typeof CARD_GROUPS)[number]["aggregateKey"]
   | (typeof CARD_GROUPS)[number]["individual"][number]["key"];
 
@@ -46,10 +37,10 @@ export function fieldNameFor(key: StyleCardKey): string {
   return `${key}Image`;
 }
 
-// Flat list of every optional card (standalone + aggregate + individual) with
-// a label, for the API route's generic per-field validation/collection loop.
+// Flat list of every category with a label, for the API route's generic
+// per-field validation/collection loop and section-label lookups.
 export const ALL_STYLE_CARDS: { key: StyleCardKey; label: string }[] = [
-  ...STANDALONE_CARDS,
+  { key: "placement", label: "제품 위치" },
   ...CARD_GROUPS.flatMap((group) => [{ key: group.aggregateKey, label: group.aggregateLabel }, ...group.individual]),
 ];
 
@@ -59,10 +50,11 @@ export const CATEGORY_LABEL: Record<StyleCardKey, string> = Object.fromEntries(
   ALL_STYLE_CARDS.map((c) => [c.key, c.label]),
 ) as Record<StyleCardKey, string>;
 
-// The 6 individual categories selectable as tags on a reference-image slot
-// (the 모델 전체/무드 전체 aggregates aren't offered here anymore, and
-// `placement` keeps its own dedicated standalone card).
-export const SELECTABLE_CATEGORIES: { key: StyleCardKey; label: string; emoji: string }[] =
-  CARD_GROUPS.flatMap((group) => group.individual.map((c) => ({ key: c.key, label: c.label, emoji: c.emoji })));
+// The 7 categories selectable as tags on a reference-image slot (the 모델
+// 전체/무드 전체 aggregates aren't offered here). 제품 위치 is listed last.
+export const SELECTABLE_CATEGORIES: { key: StyleCardKey; label: string; emoji: string }[] = [
+  ...CARD_GROUPS.flatMap((group) => group.individual.map((c) => ({ key: c.key, label: c.label, emoji: c.emoji }))),
+  { key: "placement", label: "제품 위치", emoji: "🎒" },
+];
 
 export const REFERENCE_SLOT_COUNT = 4;
