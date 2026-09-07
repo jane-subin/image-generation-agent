@@ -10,11 +10,6 @@ export const runtime = "nodejs";
 // (300s) for headroom.
 export const maxDuration = 280;
 
-// TEMPORARY: confirm which image model is actually configured on Vercel.
-export async function GET() {
-  return NextResponse.json({ imageModel: process.env.OPENAI_IMAGE_MODEL ?? "(unset, defaults to gpt-image-2)" });
-}
-
 // The vision analysis already happened in POST /api/compose — this route only
 // takes the product photo plus the already-computed sections and generates.
 export async function POST(req: Request) {
