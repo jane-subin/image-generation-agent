@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+type View = "all" | "best" | "trash";
+
 type Section = { key: string; label: string; text: string };
 type Generation = {
   id: string;
@@ -13,7 +15,7 @@ type Generation = {
 
 const SCORES = Array.from({ length: 10 }, (_, i) => i + 1);
 
-export default function GenerationsList({ best }: { best: boolean }) {
+export default function GenerationsList({ view }: { view: View }) {
   const [items, setItems] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export default function GenerationsList({ best }: { best: boolean }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/generations${best ? "?best=1" : ""}`)
+    fetch(`/api/generations?view=${view}`)
       .then((res) => res.json())
       .then((json) => {
         if (!cancelled) setItems(json.generations ?? []);
@@ -32,7 +34,7 @@ export default function GenerationsList({ best }: { best: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [best]);
+  }, [view]);
 
   async function setScore(id: string, score: number) {
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, score } : it)));
@@ -43,16 +45,28 @@ export default function GenerationsList({ best }: { best: boolean }) {
     });
   }
 
+  async function setDeleted(id: string, deleted: boolean) {
+    // Trashing/restoring moves the item out of the current view, so drop it locally.
+    setItems((prev) => prev.filter((it) => it.id !== id));
+    await fetch(`/api/generations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deleted }),
+    });
+  }
+
   if (loading) {
     return <p className="text-sm text-gray-400">불러오는 중…</p>;
   }
 
   if (items.length === 0) {
-    return (
-      <p className="text-sm text-gray-400">
-        {best ? "8점 이상 받은 이미지가 아직 없습니다." : "생성된 이미지가 아직 없습니다."}
-      </p>
-    );
+    const emptyMessage =
+      view === "best"
+        ? "8점 이상 받은 이미지가 아직 없습니다."
+        : view === "trash"
+          ? "휴지통이 비어있습니다."
+          : "생성된 이미지가 아직 없습니다.";
+    return <p className="text-sm text-gray-400">{emptyMessage}</p>;
   }
 
   return (
@@ -66,7 +80,26 @@ export default function GenerationsList({ best }: { best: boolean }) {
             className="h-32 w-24 shrink-0 rounded-xl object-cover"
           />
           <div className="flex flex-1 flex-col gap-2">
-            <p className="text-xs text-gray-400">{new Date(item.created_at).toLocaleString("ko-KR")}</p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs text-gray-400">{new Date(item.created_at).toLocaleString("ko-KR")}</p>
+              {view === "trash" ? (
+                <button
+                  type="button"
+                  onClick={() => setDeleted(item.id, false)}
+                  className="text-xs font-medium text-blue-600 underline"
+                >
+                  복구
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDeleted(item.id, true)}
+                  className="text-xs font-medium text-gray-400 hover:text-rose-500"
+                >
+                  🗑 휴지통으로
+                </button>
+              )}
+            </div>
 
             <div className="flex flex-wrap gap-1">
               {SCORES.map((n) => (

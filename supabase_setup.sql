@@ -19,3 +19,6 @@ create table if not exists section_examples (
 
 create index if not exists section_examples_category_score_idx
   on section_examples (category, score desc, created_at desc);
+
+-- Added for soft-delete (sidebar Trash section)
+alter table generations add column if not exists deleted_at timestamptz;

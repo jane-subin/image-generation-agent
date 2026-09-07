@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { resizeImageFile } from "@/lib/resizeImage";
 import { CARD_GROUPS, fieldNameFor, type StyleCardKey } from "@/lib/cardConfig";
 
 type ApiError = { code: string; message: string };
 type Tone = "product" | "reference" | "aggregate";
+type Section = { key: string; label: string; text: string };
+const SCORES = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const TONE_CLASSES: Record<Tone, { label: string; border: string; box: string }> = {
   product: { label: "text-blue-900", border: "border-blue-200", box: "bg-blue-100/70" },
@@ -57,6 +60,8 @@ function ImageDropField({
 }
 
 export default function Home() {
+  const router = useRouter();
+
   const [productFile, setProductFile] = useState<File | null>(null);
   const [productPreview, setProductPreview] = useState<string | null>(null);
 
@@ -65,19 +70,28 @@ export default function Home() {
 
   const [loading, setLoading] = useState(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [resultSections, setResultSections] = useState<Section[]>([]);
+  const [pendingScore, setPendingScore] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+
+  function resetResult() {
+    setResultUrl(null);
+    setResultSections([]);
+    setPendingScore(null);
+  }
 
   function handleProductChange(file: File | null) {
     setProductFile(file);
     setProductPreview(file ? URL.createObjectURL(file) : null);
-    setResultUrl(null);
+    resetResult();
     setError(null);
   }
 
   function handleStyleChange(key: StyleCardKey, file: File | null) {
     setStyleFiles((prev) => ({ ...prev, [key]: file ?? undefined }));
     setStylePreviews((prev) => ({ ...prev, [key]: file ? URL.createObjectURL(file) : undefined }));
-    setResultUrl(null);
+    resetResult();
     setError(null);
   }
 
@@ -87,7 +101,7 @@ export default function Home() {
 
     setLoading(true);
     setError(null);
-    setResultUrl(null);
+    resetResult();
 
     try {
       const allCardKeys: StyleCardKey[] = CARD_GROUPS.flatMap((g) => [
@@ -117,6 +131,7 @@ export default function Home() {
         return;
       }
       setResultUrl(json.imageUrl);
+      setResultSections(json.sections ?? []);
     } catch {
       setError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
     } finally {
@@ -136,6 +151,39 @@ export default function Home() {
     a.download = "generated.png";
     a.click();
     URL.revokeObjectURL(blobUrl);
+  }
+
+  async function handleSave() {
+    if (!resultUrl || pendingScore == null) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/generations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: resultUrl, sections: resultSections, score: pendingScore }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? { code: "UNKNOWN", message: "저장에 실패했습니다." });
+        return;
+      }
+      router.push(pendingScore >= 8 ? "/gallery/best" : "/gallery/all");
+    } catch {
+      setError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleTrash() {
+    if (!resultUrl) return;
+    fetch("/api/discard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: resultUrl }),
+    }).catch(() => {});
+    resetResult();
   }
 
   return (
@@ -215,13 +263,54 @@ export default function Home() {
           <div className="flex flex-col gap-3 rounded-2xl border border-sky-100 bg-white/90 p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={resultUrl} alt="생성된 이미지" className="w-full rounded-xl" />
-            <button
-              type="button"
-              onClick={handleDownload}
-              className="self-start rounded-xl bg-gradient-to-r from-cyan-100 to-sky-200 px-4 py-2 text-sm font-medium text-blue-950 transition hover:from-cyan-200 hover:to-sky-300"
-            >
-              이미지 다운로드
-            </button>
+
+            <div>
+              <p className="mb-1 text-xs font-medium text-gray-500">점수 매기기</p>
+              <div className="flex flex-wrap gap-1">
+                {SCORES.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPendingScore(n)}
+                    className={`h-7 w-7 rounded-md text-xs font-medium transition ${
+                      pendingScore === n
+                        ? "bg-blue-900 text-white"
+                        : "bg-sky-50 text-blue-800 hover:bg-sky-100"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleDownload}
+                className="rounded-xl bg-gradient-to-r from-cyan-100 to-sky-200 px-4 py-2 text-sm font-medium text-blue-950 transition hover:from-cyan-200 hover:to-sky-300"
+              >
+                이미지 다운로드
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={pendingScore == null || saving}
+                className="rounded-xl bg-blue-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {saving ? "저장 중…" : "저장"}
+              </button>
+              <button
+                type="button"
+                onClick={handleTrash}
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-500 transition hover:border-rose-200 hover:text-rose-500"
+              >
+                🗑 휴지통
+              </button>
+            </div>
+            {pendingScore == null && (
+              <p className="text-xs text-gray-400">저장하려면 먼저 점수를 선택해주세요.</p>
+            )}
           </div>
         )}
       </div>

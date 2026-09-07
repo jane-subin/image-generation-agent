@@ -8,7 +8,7 @@ export default function AllLogsPage() {
           <h1 className="text-2xl font-bold text-blue-950">All</h1>
           <p className="mt-1 text-sm text-gray-500">생성된 모든 이미지와 그때 사용된 프롬프트를 확인하고 점수를 매길 수 있습니다.</p>
         </div>
-        <GenerationsList best={false} />
+        <GenerationsList view="all" />
       </div>
     </main>
   );

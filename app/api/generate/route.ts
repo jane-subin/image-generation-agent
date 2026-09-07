@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { describeCard, generateComposite, type PromptSection } from "@/lib/openai";
-import { supabaseAdmin, RESULTS_BUCKET, GENERATIONS_TABLE, fetchGoodExamples } from "@/lib/supabase";
+import { supabaseAdmin, RESULTS_BUCKET, fetchGoodExamples } from "@/lib/supabase";
 import { ALL_STYLE_CARDS, fieldNameFor, type StyleCardKey } from "@/lib/cardConfig";
 
 export const runtime = "nodejs";
@@ -94,15 +94,9 @@ export async function POST(req: Request) {
 
     const { data } = supabaseAdmin().storage.from(RESULTS_BUCKET).getPublicUrl(path);
 
-    // Best-effort history log — a logging failure shouldn't fail the user's request.
-    await supabaseAdmin()
-      .from(GENERATIONS_TABLE)
-      .insert({ image_url: data.publicUrl, sections, score: null })
-      .then(
-        () => {},
-        () => {},
-      );
-
+    // Not logged to the `generations` table here — the result is only persisted
+    // if/when the user explicitly clicks 저장 on the main page (see POST
+    // /api/generations). Clicking 휴지통 instead leaves no record at all.
     return NextResponse.json({ imageUrl: data.publicUrl, sections });
   } catch (err: unknown) {
     const e = err as { status?: number; error?: { message?: string }; message?: string };
