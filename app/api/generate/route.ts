@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { describeCard, generateComposite, type PromptSection } from "@/lib/openai";
 import { supabaseAdmin, RESULTS_BUCKET } from "@/lib/supabase";
-import { STYLE_CARDS, fieldNameFor } from "@/lib/cardConfig";
+import { ALL_STYLE_CARDS, fieldNameFor, type StyleCardKey } from "@/lib/cardConfig";
 
 export const runtime = "nodejs";
-// Up to 7 sequential/parallel OpenAI calls (per-card vision analysis + the final
+// Up to 8 parallel vision calls (per-card analysis) plus the final
 // high-quality image edit) plus a Supabase upload can vary a lot in latency.
 // Set close to Vercel's Hobby-plan-with-Fluid-Compute ceiling (300s) for headroom.
 export const maxDuration = 280;
@@ -55,8 +55,8 @@ export async function POST(req: Request) {
   if (productError) return productError;
   const productFile = productImage as File;
 
-  const styleFiles: { key: (typeof STYLE_CARDS)[number]["key"]; label: string; file: File }[] = [];
-  for (const card of STYLE_CARDS) {
+  const styleFiles: { key: StyleCardKey; label: string; file: File }[] = [];
+  for (const card of ALL_STYLE_CARDS) {
     const entry = form.get(fieldNameFor(card.key));
     if (entry == null) continue;
     const err = validateImageField(entry, card.label);

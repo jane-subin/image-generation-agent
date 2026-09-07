@@ -2,21 +2,41 @@
 
 import { useState } from "react";
 import { resizeImageFile } from "@/lib/resizeImage";
-import { STYLE_CARDS, fieldNameFor, type StyleCardKey } from "@/lib/cardConfig";
+import { CARD_GROUPS, fieldNameFor, type StyleCardKey } from "@/lib/cardConfig";
 
 type ApiError = { code: string; message: string };
-type Tone = "product" | "reference";
+type Tone = "product" | "reference" | "aggregate";
 
-const TONE_CLASSES: Record<Tone, { label: string; border: string; placeholder: string }> = {
+const TONE_CLASSES: Record<
+  Tone,
+  { label: string; border: string; placeholder: string; box: string; fileBg: string; fileText: string; fileHoverBg: string }
+> = {
   product: {
-    label: "text-amber-900",
-    border: "border-amber-200",
-    placeholder: "text-amber-300",
+    label: "text-slate-700",
+    border: "border-slate-300",
+    placeholder: "text-slate-300",
+    box: "bg-slate-50/70",
+    fileBg: "bg-slate-100",
+    fileText: "text-slate-700",
+    fileHoverBg: "hover:bg-slate-200",
   },
   reference: {
     label: "text-blue-900",
     border: "border-sky-200",
     placeholder: "text-gray-400",
+    box: "bg-white/80",
+    fileBg: "bg-sky-100",
+    fileText: "text-blue-800",
+    fileHoverBg: "hover:bg-sky-200",
+  },
+  aggregate: {
+    label: "text-emerald-900",
+    border: "border-emerald-200",
+    placeholder: "text-emerald-300",
+    box: "bg-emerald-50/50",
+    fileBg: "bg-emerald-100",
+    fileText: "text-emerald-800",
+    fileHoverBg: "hover:bg-emerald-200",
   },
 };
 
@@ -41,7 +61,7 @@ function ImageDropField({
       <span className={`text-base font-medium ${c.label}`}>{label}</span>
       {hint && <span className="-mt-1 text-xs text-gray-400">{hint}</span>}
       <div
-        className={`flex h-40 items-center justify-center overflow-hidden rounded-xl border border-dashed ${c.border} bg-white/80`}
+        className={`flex h-36 items-center justify-center overflow-hidden rounded-xl border border-dashed ${c.border} ${c.box}`}
       >
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -53,7 +73,7 @@ function ImageDropField({
       <input
         type="file"
         accept="image/*"
-        className="text-sm text-gray-400 file:mr-3 file:rounded-md file:border-0 file:bg-sky-100 file:px-3 file:py-1.5 file:text-blue-800 hover:file:bg-sky-200"
+        className={`text-sm text-gray-400 file:mr-3 file:rounded-md file:border-0 ${c.fileBg} file:px-3 file:py-1.5 ${c.fileText} ${c.fileHoverBg}`}
         onChange={(e) => onChange(e.target.files?.[0] ?? null)}
       />
       {file && <span className="text-xs text-gray-400">{file.name}</span>}
@@ -95,10 +115,13 @@ export default function Home() {
     setResultUrl(null);
 
     try {
-      const filledStyleEntries = STYLE_CARDS.filter((c) => styleFiles[c.key]).map((c) => ({
-        key: c.key,
-        file: styleFiles[c.key]!,
-      }));
+      const allCardKeys: StyleCardKey[] = CARD_GROUPS.flatMap((g) => [
+        g.aggregateKey,
+        ...g.individual.map((c) => c.key),
+      ]);
+      const filledStyleEntries = allCardKeys
+        .filter((key) => styleFiles[key])
+        .map((key) => ({ key, file: styleFiles[key]! }));
 
       const [resizedProduct, ...resizedStyleFiles] = await Promise.all([
         resizeImageFile(productFile),
@@ -142,7 +165,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-cyan-50 px-4 py-10">
-      <div className="mx-auto flex max-w-3xl flex-col gap-8 rounded-3xl border border-white/60 bg-white/60 p-8 shadow-sm shadow-sky-100 backdrop-blur-sm">
+      <div className="mx-auto flex max-w-4xl flex-col gap-8 rounded-3xl border border-white/60 bg-white/60 p-8 shadow-sm shadow-sky-100 backdrop-blur-sm">
         <div>
           <h1 className="text-2xl font-bold text-blue-950">이미지 생성 에이전트</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -150,8 +173,8 @@ export default function Home() {
           </p>
         </div>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-6">
-          <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
+        <form onSubmit={onSubmit} className="flex flex-col gap-8">
+          <div className={`rounded-2xl border ${TONE_CLASSES.product.border} ${TONE_CLASSES.product.box} p-4`}>
             <ImageDropField
               label="제품 사진 (필수)"
               tone="product"
@@ -161,19 +184,35 @@ export default function Home() {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {STYLE_CARDS.map((card) => (
-              <ImageDropField
-                key={card.key}
-                label={card.label}
-                hint={card.hint}
-                tone="reference"
-                file={styleFiles[card.key] ?? null}
-                preview={stylePreviews[card.key] ?? null}
-                onChange={(file) => handleStyleChange(card.key, file)}
-              />
-            ))}
-          </div>
+          {CARD_GROUPS.map((group) => (
+            <div key={group.aggregateKey} className="flex flex-col gap-2">
+              <div className="flex gap-4 text-xs font-medium">
+                <span className="basis-1/4 text-emerald-600">종합</span>
+                <span className="text-gray-400">개별</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <ImageDropField
+                  label={group.aggregateLabel}
+                  hint={group.aggregateHint}
+                  tone="aggregate"
+                  file={styleFiles[group.aggregateKey] ?? null}
+                  preview={stylePreviews[group.aggregateKey] ?? null}
+                  onChange={(file) => handleStyleChange(group.aggregateKey, file)}
+                />
+                {group.individual.map((card) => (
+                  <ImageDropField
+                    key={card.key}
+                    label={card.label}
+                    hint={card.hint}
+                    tone="reference"
+                    file={styleFiles[card.key] ?? null}
+                    preview={stylePreviews[card.key] ?? null}
+                    onChange={(file) => handleStyleChange(card.key, file)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
 
           <button
             type="submit"
