@@ -393,20 +393,20 @@ export default function Home() {
           </div>
 
           {/* RIGHT: prompt review + generate */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-sky-100 bg-white/80 p-4">
-            <h2 className="text-base font-bold text-blue-950">최종 프롬프트</h2>
+          <div className="flex min-h-0 flex-col gap-3 rounded-2xl border border-sky-100 bg-white/80 p-4">
+            <h2 className="shrink-0 text-base font-bold text-blue-950">최종 프롬프트</h2>
 
             {composedSections == null ? (
               <p className="text-sm text-gray-400">
                 왼쪽에서 이미지를 첨부하고 카테고리를 선택한 뒤 &ldquo;프롬프트 생성&rdquo;을 눌러주세요.
               </p>
             ) : (
-              <div className="flex flex-col gap-1">
-                <p className="text-xs font-medium text-gray-500">직접 수정할 수 있습니다</p>
+              <div className="flex min-h-0 flex-1 flex-col gap-1">
+                <p className="shrink-0 text-xs font-medium text-gray-500">직접 수정할 수 있습니다</p>
                 <textarea
                   value={koreanPrompt}
                   onChange={(e) => setKoreanPrompt(e.target.value)}
-                  className="h-[44rem] w-full resize-none rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700"
+                  className="w-full min-h-0 flex-1 resize-none rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700"
                 />
               </div>
             )}
@@ -415,7 +415,7 @@ export default function Home() {
               type="button"
               onClick={handleGenerateFinal}
               disabled={!productFile || composedSections == null || loading}
-              className="rounded-xl bg-blue-900 px-4 py-3 font-medium text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
+              className="shrink-0 rounded-xl bg-blue-900 px-4 py-3 font-medium text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {loading ? "생성 중… (이미지에 따라 최대 4~5분 정도 걸릴 수 있어요)" : "이미지 생성"}
             </button>
