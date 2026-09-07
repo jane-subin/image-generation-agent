@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-import { describeReferenceScene, generateComposite } from "@/lib/openai";
+import { describeCard, generateComposite, type PromptSection } from "@/lib/openai";
 import { supabaseAdmin, RESULTS_BUCKET } from "@/lib/supabase";
+import { STYLE_CARDS, fieldNameFor } from "@/lib/cardConfig";
 
 export const runtime = "nodejs";
-// Two sequential OpenAI calls (vision description + high-quality image edit) plus
-// a Supabase upload can vary a lot in latency depending on image complexity.
+// Up to 7 sequential/parallel OpenAI calls (per-card vision analysis + the final
+// high-quality image edit) plus a Supabase upload can vary a lot in latency.
 // Set close to Vercel's Hobby-plan-with-Fluid-Compute ceiling (300s) for headroom.
 export const maxDuration = 280;
 
-// Combined request body must stay well under Vercel's 4.5MB hard cap.
-const MAX_FILE_BYTES = 3 * 1024 * 1024;
+// Per-file and combined caps keep the multipart body well under Vercel's 4.5MB
+// hard request-body limit now that up to 7 images can be attached at once.
+const MAX_FILE_BYTES = 1.5 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 4 * 1024 * 1024;
 
 function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -24,7 +27,7 @@ function validateImageField(file: FormDataEntryValue | null, label: string) {
     return errorResponse("INVALID_FILE_TYPE", "이미지 파일만 업로드할 수 있습니다.", 400);
   }
   if (file.size > MAX_FILE_BYTES) {
-    return errorResponse("FILE_TOO_LARGE", `${label} 이미지는 3MB 이하로 업로드해주세요.`, 413);
+    return errorResponse("FILE_TOO_LARGE", `${label} 이미지는 1.5MB 이하로 업로드해주세요.`, 413);
   }
   return null;
 }
@@ -46,17 +49,39 @@ export async function POST(req: Request) {
   }
 
   const form = await req.formData();
-  const referenceImage = form.get("referenceImage");
-  const productImage = form.get("productImage");
 
-  const referenceError = validateImageField(referenceImage, "레퍼런스");
-  if (referenceError) return referenceError;
+  const productImage = form.get("productImage");
   const productError = validateImageField(productImage, "제품");
   if (productError) return productError;
+  const productFile = productImage as File;
+
+  const styleFiles: { key: (typeof STYLE_CARDS)[number]["key"]; label: string; file: File }[] = [];
+  for (const card of STYLE_CARDS) {
+    const entry = form.get(fieldNameFor(card.key));
+    if (entry == null) continue;
+    const err = validateImageField(entry, card.label);
+    if (err) return err;
+    styleFiles.push({ key: card.key, label: card.label, file: entry as File });
+  }
+
+  const totalBytes = productFile.size + styleFiles.reduce((sum, s) => sum + s.file.size, 0);
+  if (totalBytes > MAX_TOTAL_BYTES) {
+    return errorResponse(
+      "FILE_TOO_LARGE",
+      "첨부한 이미지들의 합산 용량이 너무 큽니다. 이미지 수를 줄이거나 더 작은 이미지로 시도해주세요.",
+      413,
+    );
+  }
 
   try {
-    const sceneDescription = await describeReferenceScene(referenceImage as File);
-    const imageBuffer = await generateComposite(productImage as File, sceneDescription);
+    const sections: PromptSection[] = await Promise.all(
+      styleFiles.map(async ({ key, label, file }) => ({
+        label,
+        text: await describeCard(file, key),
+      })),
+    );
+
+    const imageBuffer = await generateComposite(productFile, sections);
 
     const path = `${randomUUID()}.png`;
     const { error: uploadError } = await supabaseAdmin()
@@ -68,7 +93,7 @@ export async function POST(req: Request) {
     }
 
     const { data } = supabaseAdmin().storage.from(RESULTS_BUCKET).getPublicUrl(path);
-    return NextResponse.json({ imageUrl: data.publicUrl, sceneDescription });
+    return NextResponse.json({ imageUrl: data.publicUrl, sections });
   } catch (err: unknown) {
     const e = err as { status?: number; error?: { message?: string }; message?: string };
     const status = typeof e?.status === "number" ? e.status : 502;

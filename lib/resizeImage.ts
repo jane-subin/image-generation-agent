@@ -2,8 +2,8 @@
 // stay comfortably under Vercel's 4.5MB request body cap.
 export async function resizeImageFile(
   file: File,
-  maxDimension = 1600,
-  quality = 0.85,
+  maxDimension = 1280,
+  quality = 0.8,
 ): Promise<File> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
