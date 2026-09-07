@@ -116,7 +116,7 @@ export type PromptSection = { key: StyleCardKey; label: string; text: string };
 
 export function buildComposePrompt(sections: PromptSection[]): string {
   const sceneBlock = sections.length
-    ? sections.map((s) => `- ${s.label}: ${s.text}`).join("\n")
+    ? sections.map((s) => `- ${s.label}: ${s.text}`).join("\n\n")
     : "- 별도로 명시된 요소가 없으므로, 심플하고 자연스러운 라이프스타일/스튜디오 화보 스타일로 자유롭게 구성하라.";
 
   return `첨부된 제품 사진 속 제품을 정확히 그대로 활용하여, 포토리얼리스틱한 화보/광고 사진 한 장을 생성하라.

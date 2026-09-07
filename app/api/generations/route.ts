@@ -25,7 +25,7 @@ export async function GET(req: Request) {
   const { data, error } = await query;
   if (error) {
     return NextResponse.json(
-      { error: { code: "STORAGE_ERROR", message: "기록을 불러오지 못했습니다." } },
+      { error: { code: "STORAGE_ERROR", message: `기록을 불러오지 못했습니다: ${error.message}` } },
       { status: 502 },
     );
   }
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
 
   if (error || !data) {
     return NextResponse.json(
-      { error: { code: "STORAGE_ERROR", message: "저장하지 못했습니다." } },
+      { error: { code: "STORAGE_ERROR", message: `저장하지 못했습니다: ${error?.message ?? "알 수 없는 오류"}` } },
       { status: 502 },
     );
   }

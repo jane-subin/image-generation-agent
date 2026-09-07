@@ -56,7 +56,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
   if (updateError) {
     return NextResponse.json(
-      { error: { code: "STORAGE_ERROR", message: "변경 사항을 저장하지 못했습니다." } },
+      {
+        error: {
+          code: "STORAGE_ERROR",
+          message: `변경 사항을 저장하지 못했습니다: ${updateError.message}`,
+        },
+      },
       { status: 502 },
     );
   }
