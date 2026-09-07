@@ -162,7 +162,7 @@ export default function Home() {
           {CARD_GROUPS.map((group) => (
             <div key={group.aggregateKey} className="flex flex-col gap-2">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-center text-xs font-medium text-emerald-600">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-center text-xs font-medium text-gray-500">
                   종합
                 </div>
                 <div className="col-span-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-center text-xs font-medium text-gray-500 sm:col-span-3">
@@ -172,7 +172,7 @@ export default function Home() {
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <Card tone="aggregate">
                   <ImageDropField
-                    label={group.aggregateLabel}
+                    label={`${group.aggregateEmoji} ${group.aggregateLabel}`}
                     hint={group.aggregateHint}
                     tone="aggregate"
                     file={styleFiles[group.aggregateKey] ?? null}
@@ -183,7 +183,7 @@ export default function Home() {
                 {group.individual.map((card) => (
                   <Card key={card.key} tone="reference">
                     <ImageDropField
-                      label={card.label}
+                      label={`${card.emoji} ${card.label}`}
                       hint={card.hint}
                       tone="reference"
                       file={styleFiles[card.key] ?? null}
