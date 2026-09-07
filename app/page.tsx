@@ -275,16 +275,6 @@ export default function Home() {
     }
   }
 
-  function handleTrash() {
-    if (!resultUrl) return;
-    fetch("/api/discard", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl: resultUrl }),
-    }).catch(() => {});
-    resetResult();
-  }
-
   return (
     <main className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-cyan-50 px-4 py-6">
       <div className="mx-auto flex max-w-6xl flex-col gap-4">
@@ -435,13 +425,6 @@ export default function Home() {
                 className="rounded-xl bg-blue-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {saving ? "저장 중…" : "저장"}
-              </button>
-              <button
-                type="button"
-                onClick={handleTrash}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-500 transition hover:border-rose-200 hover:text-rose-500"
-              >
-                🗑 휴지통
               </button>
             </div>
             {pendingScore == null && (

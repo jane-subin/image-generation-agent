@@ -13,13 +13,8 @@ export async function GET(req: Request) {
     .select("id, created_at, image_url, sections, score")
     .order("created_at", { ascending: false });
 
-  if (view === "trash") {
-    query = query.not("deleted_at", "is", null);
-  } else {
-    query = query.is("deleted_at", null);
-    if (view === "best") {
-      query = query.gte("score", 8);
-    }
+  if (view === "best") {
+    query = query.gte("score", 8);
   }
 
   const { data, error } = await query;
@@ -34,7 +29,6 @@ export async function GET(req: Request) {
 }
 
 // Persists a generated result the user explicitly chose to keep (저장 버튼).
-// A result the user discards (휴지통 버튼) never reaches this endpoint at all.
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const imageUrl = body?.imageUrl;
