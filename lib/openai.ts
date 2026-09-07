@@ -123,7 +123,7 @@ const REALISM_KEYWORDS = [
 
 export type PromptSection = { key: StyleCardKey; label: string; text: string };
 
-function buildComposePrompt(sections: PromptSection[]): string {
+export function buildComposePrompt(sections: PromptSection[]): string {
   const sceneBlock = sections.length
     ? sections.map((s) => `- ${s.label}: ${s.text}`).join("\n")
     : "- 별도로 명시된 요소가 없으므로, 심플하고 자연스러운 라이프스타일/스튜디오 화보 스타일로 자유롭게 구성하라.";
@@ -142,12 +142,25 @@ ${REALISM_KEYWORDS.join(", ")}
 ${sceneBlock}`;
 }
 
-export async function generateComposite(
-  productFile: File,
-  sections: PromptSection[],
-): Promise<Buffer> {
-  const prompt = buildComposePrompt(sections);
+// Reference-only translation shown to the user alongside the Korean prompt —
+// the actual generation call always uses the Korean text rebuilt server-side
+// from `sections`, never this translated string.
+export async function translatePrompt(koreanPrompt: string): Promise<string> {
+  const response = await client().chat.completions.create({
+    model: VISION_MODEL,
+    messages: [
+      {
+        role: "system",
+        content:
+          "다음은 AI 이미지 생성에 쓰일 한국어 프롬프트다. 구조(대괄호 섹션 제목 등)와 의미를 그대로 유지하면서 자연스러운 영어로 번역하라. 번역문 외의 다른 말은 출력하지 마라.",
+      },
+      { role: "user", content: koreanPrompt },
+    ],
+  });
+  return response.choices[0]?.message?.content?.trim() ?? "";
+}
 
+export async function generateComposite(productFile: File, prompt: string): Promise<Buffer> {
   const params: OpenAI.ImageEditParamsNonStreaming = {
     model: IMAGE_MODEL,
     image: productFile,

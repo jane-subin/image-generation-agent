@@ -3,11 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { resizeImageFile } from "@/lib/resizeImage";
-import { CARD_GROUPS, STANDALONE_CARDS, fieldNameFor, type StyleCardKey } from "@/lib/cardConfig";
+import {
+  STANDALONE_CARDS,
+  SELECTABLE_CATEGORIES,
+  REFERENCE_SLOT_COUNT,
+  type StyleCardKey,
+} from "@/lib/cardConfig";
 
 type ApiError = { code: string; message: string };
 type Tone = "product" | "reference" | "aggregate";
 type Section = { key: string; label: string; text: string };
+type ReferenceSlot = { file: File | null; preview: string | null; categories: StyleCardKey[] };
+
 const SCORES = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const TONE_CLASSES: Record<Tone, { label: string; border: string; box: string }> = {
@@ -18,7 +25,7 @@ const TONE_CLASSES: Record<Tone, { label: string; border: string; box: string }>
 
 function Card({ tone, children }: { tone: Tone; children: React.ReactNode }) {
   const c = TONE_CLASSES[tone];
-  return <div className={`rounded-2xl border ${c.border} ${c.box} p-4`}>{children}</div>;
+  return <div className={`rounded-2xl border ${c.border} ${c.box} p-3`}>{children}</div>;
 }
 
 function ImageDropField({
@@ -28,6 +35,7 @@ function ImageDropField({
   file,
   preview,
   onChange,
+  compact,
 }: {
   label: string;
   hint?: string;
@@ -35,13 +43,16 @@ function ImageDropField({
   file: File | null;
   preview: string | null;
   onChange: (file: File | null) => void;
+  compact?: boolean;
 }) {
   const c = TONE_CLASSES[tone];
   return (
-    <label className="flex flex-col gap-2">
-      <span className={`text-base font-medium ${c.label}`}>{label}</span>
+    <label className="flex flex-col gap-1.5">
+      <span className={`text-sm font-medium ${c.label}`}>{label}</span>
       {hint && <span className="-mt-1 text-xs text-gray-400">{hint}</span>}
-      <div className="relative flex h-36 items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white/70">
+      <div
+        className={`relative flex ${compact ? "h-20" : "h-36"} items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white/70`}
+      >
         {preview ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -53,14 +64,14 @@ function ImageDropField({
                 e.stopPropagation();
                 onChange(null);
               }}
-              className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-xs text-gray-600 shadow hover:bg-rose-50 hover:text-rose-500"
+              className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-xs text-gray-600 shadow hover:bg-rose-50 hover:text-rose-500"
               aria-label="이미지 삭제"
             >
               ✕
             </button>
           </>
         ) : (
-          <span className="text-sm text-gray-400">클릭해서 이미지 선택</span>
+          <span className="text-xs text-gray-400">클릭해서 이미지 선택</span>
         )}
       </div>
       <input
@@ -73,87 +84,163 @@ function ImageDropField({
   );
 }
 
+function makeEmptySlots(): ReferenceSlot[] {
+  return Array.from({ length: REFERENCE_SLOT_COUNT }, () => ({
+    file: null,
+    preview: null,
+    categories: [],
+  }));
+}
+
 export default function Home() {
   const router = useRouter();
 
   const [productFile, setProductFile] = useState<File | null>(null);
   const [productPreview, setProductPreview] = useState<string | null>(null);
 
-  const [styleFiles, setStyleFiles] = useState<Partial<Record<StyleCardKey, File>>>({});
-  const [stylePreviews, setStylePreviews] = useState<Partial<Record<StyleCardKey, string>>>({});
+  const [placementFiles, setPlacementFiles] = useState<Partial<Record<StyleCardKey, File>>>({});
+  const [placementPreviews, setPlacementPreviews] = useState<Partial<Record<StyleCardKey, string>>>({});
+
+  const [referenceSlots, setReferenceSlots] = useState<ReferenceSlot[]>(makeEmptySlots());
+
+  const [composing, setComposing] = useState(false);
+  const [composeError, setComposeError] = useState<ApiError | null>(null);
+  const [composedSections, setComposedSections] = useState<Section[] | null>(null);
+  const [koreanPrompt, setKoreanPrompt] = useState("");
+  const [englishPrompt, setEnglishPrompt] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [generateError, setGenerateError] = useState<ApiError | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [resultSections, setResultSections] = useState<Section[]>([]);
   const [pendingScore, setPendingScore] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<ApiError | null>(null);
+
+  function resetCompose() {
+    setComposedSections(null);
+    setKoreanPrompt("");
+    setEnglishPrompt("");
+    setComposeError(null);
+  }
 
   function resetResult() {
     setResultUrl(null);
     setResultSections([]);
     setPendingScore(null);
+    setGenerateError(null);
   }
 
   function handleProductChange(file: File | null) {
     setProductFile(file);
     setProductPreview(file ? URL.createObjectURL(file) : null);
     resetResult();
-    setError(null);
   }
 
-  function handleStyleChange(key: StyleCardKey, file: File | null) {
-    setStyleFiles((prev) => ({ ...prev, [key]: file ?? undefined }));
-    setStylePreviews((prev) => ({ ...prev, [key]: file ? URL.createObjectURL(file) : undefined }));
+  function handlePlacementChange(key: StyleCardKey, file: File | null) {
+    setPlacementFiles((prev) => ({ ...prev, [key]: file ?? undefined }));
+    setPlacementPreviews((prev) => ({ ...prev, [key]: file ? URL.createObjectURL(file) : undefined }));
+    resetCompose();
     resetResult();
-    setError(null);
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!productFile) return;
+  function handleSlotFileChange(index: number, file: File | null) {
+    setReferenceSlots((prev) =>
+      prev.map((slot, i) =>
+        i === index
+          ? { file, preview: file ? URL.createObjectURL(file) : null, categories: file ? slot.categories : [] }
+          : slot,
+      ),
+    );
+    resetCompose();
+    resetResult();
+  }
+
+  function toggleSlotCategory(index: number, key: StyleCardKey) {
+    setReferenceSlots((prev) =>
+      prev.map((slot, i) =>
+        i === index
+          ? {
+              ...slot,
+              categories: slot.categories.includes(key)
+                ? slot.categories.filter((k) => k !== key)
+                : [...slot.categories, key],
+            }
+          : slot,
+      ),
+    );
+    resetCompose();
+    resetResult();
+  }
+
+  async function handleCompose() {
+    setComposing(true);
+    setComposeError(null);
+    resetResult();
+    try {
+      const filledSlots = referenceSlots
+        .map((slot, i) => ({ ...slot, index: i + 1 }))
+        .filter((slot) => slot.file);
+      const placementCard = STANDALONE_CARDS[0];
+      const placementFile = placementFiles[placementCard.key];
+
+      const resizedPlacement = placementFile ? await resizeImageFile(placementFile) : null;
+      const resizedSlots = await Promise.all(
+        filledSlots.map((slot) => resizeImageFile(slot.file as File)),
+      );
+
+      const body = new FormData();
+      if (resizedPlacement) body.append("placementImage", resizedPlacement);
+      filledSlots.forEach((slot, i) => {
+        body.append(`reference${slot.index}Image`, resizedSlots[i]);
+        body.append(`reference${slot.index}Categories`, JSON.stringify(slot.categories));
+      });
+
+      const res = await fetch("/api/compose", { method: "POST", body });
+      const json = await res.json();
+
+      if (!res.ok) {
+        setComposeError(json.error ?? { code: "UNKNOWN", message: "프롬프트 생성에 실패했습니다." });
+        return;
+      }
+      setComposedSections(json.sections ?? []);
+      setKoreanPrompt(json.koreanPrompt ?? "");
+      setEnglishPrompt(json.englishPrompt ?? "");
+    } catch {
+      setComposeError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
+    } finally {
+      setComposing(false);
+    }
+  }
+
+  async function handleGenerateFinal() {
+    if (!productFile || composedSections == null) return;
 
     setLoading(true);
-    setError(null);
-    resetResult();
+    setGenerateError(null);
+    setResultUrl(null);
 
     try {
-      const allCardKeys: StyleCardKey[] = [
-        ...STANDALONE_CARDS.map((c) => c.key),
-        ...CARD_GROUPS.flatMap((g) => [g.aggregateKey, ...g.individual.map((c) => c.key)]),
-      ];
-      const filledStyleEntries = allCardKeys
-        .filter((key) => styleFiles[key])
-        .map((key) => ({ key, file: styleFiles[key]! }));
-
-      const [resizedProduct, ...resizedStyleFiles] = await Promise.all([
-        resizeImageFile(productFile),
-        ...filledStyleEntries.map((entry) => resizeImageFile(entry.file)),
-      ]);
+      const resizedProduct = await resizeImageFile(productFile);
 
       const body = new FormData();
       body.append("productImage", resizedProduct);
-      filledStyleEntries.forEach((entry, i) => {
-        body.append(fieldNameFor(entry.key), resizedStyleFiles[i]);
-      });
+      body.append("sections", JSON.stringify(composedSections));
 
       const res = await fetch("/api/generate", { method: "POST", body });
       const json = await res.json();
 
       if (!res.ok) {
-        setError(json.error ?? { code: "UNKNOWN", message: "요청 처리 중 오류가 발생했습니다." });
+        setGenerateError(json.error ?? { code: "UNKNOWN", message: "요청 처리 중 오류가 발생했습니다." });
         return;
       }
       setResultUrl(json.imageUrl);
       setResultSections(json.sections ?? []);
     } catch {
-      setError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
+      setGenerateError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
     } finally {
       setLoading(false);
     }
   }
-
-  const canSubmit = !!productFile && !loading;
 
   async function handleDownload() {
     if (!resultUrl) return;
@@ -170,7 +257,7 @@ export default function Home() {
   async function handleSave() {
     if (!resultUrl || pendingScore == null) return;
     setSaving(true);
-    setError(null);
+    setGenerateError(null);
     try {
       const res = await fetch("/api/generations", {
         method: "POST",
@@ -179,12 +266,12 @@ export default function Home() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? { code: "UNKNOWN", message: "저장에 실패했습니다." });
+        setGenerateError(json.error ?? { code: "UNKNOWN", message: "저장에 실패했습니다." });
         return;
       }
       router.push(pendingScore >= 8 ? "/gallery/best" : "/gallery/all");
     } catch {
-      setError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
+      setGenerateError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
     } finally {
       setSaving(false);
     }
@@ -200,97 +287,144 @@ export default function Home() {
     resetResult();
   }
 
+  const placementCard = STANDALONE_CARDS[0];
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-cyan-50 px-4 py-10">
-      <div className="mx-auto flex max-w-4xl flex-col gap-8 rounded-3xl border border-white/60 bg-white/60 p-8 shadow-sm shadow-sky-100 backdrop-blur-sm">
+    <main className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-cyan-50 px-4 py-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4">
         <div>
           <h1 className="text-2xl font-bold text-blue-950">이미지 생성 에이전트</h1>
           <p className="mt-1 text-sm text-gray-500">
-            제품 사진은 필수, 나머지 카드는 원하는 만큼만 첨부하세요. 첨부한 카드들의 설정을 모아 하나의 화보컷을 생성합니다.
+            이미지를 첨부하고 각 레퍼런스 이미지에 사용할 프롬프트 종류를 선택하세요. 프롬프트를 확인한 뒤 이미지를 생성합니다.
           </p>
         </div>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-8">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Card tone="product">
-              <ImageDropField
-                label="제품 사진 (필수)"
-                tone="product"
-                file={productFile}
-                preview={productPreview}
-                onChange={handleProductChange}
-              />
-            </Card>
-            {STANDALONE_CARDS.map((card) => (
-              <Card key={card.key} tone="reference">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* LEFT: image attachment */}
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Card tone="product">
                 <ImageDropField
-                  label={card.label}
-                  hint={card.hint}
-                  tone="reference"
-                  file={styleFiles[card.key] ?? null}
-                  preview={stylePreviews[card.key] ?? null}
-                  onChange={(file) => handleStyleChange(card.key, file)}
+                  label="제품 사진 (필수)"
+                  tone="product"
+                  file={productFile}
+                  preview={productPreview}
+                  onChange={handleProductChange}
                 />
               </Card>
-            ))}
+              <Card tone="reference">
+                <ImageDropField
+                  label={placementCard.label}
+                  hint={placementCard.hint}
+                  tone="reference"
+                  file={placementFiles[placementCard.key] ?? null}
+                  preview={placementPreviews[placementCard.key] ?? null}
+                  onChange={(file) => handlePlacementChange(placementCard.key, file)}
+                />
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {referenceSlots.map((slot, i) => (
+                <div key={i} className="flex flex-col gap-2 rounded-2xl border border-sky-200 bg-sky-50/70 p-3">
+                  <ImageDropField
+                    label={`레퍼런스 이미지 ${i + 1}`}
+                    tone="reference"
+                    file={slot.file}
+                    preview={slot.preview}
+                    onChange={(file) => handleSlotFileChange(i, file)}
+                    compact
+                  />
+                  {slot.file && (
+                    <div className="flex flex-wrap gap-1">
+                      {SELECTABLE_CATEGORIES.map((cat) => {
+                        const selected = slot.categories.includes(cat.key);
+                        return (
+                          <button
+                            key={cat.key}
+                            type="button"
+                            onClick={() => toggleSlotCategory(i, cat.key)}
+                            className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium transition ${
+                              selected
+                                ? "bg-blue-900 text-white"
+                                : "border border-sky-200 bg-white text-blue-800 hover:bg-sky-100"
+                            }`}
+                          >
+                            {cat.emoji} {cat.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCompose}
+              disabled={composing}
+              className="rounded-xl bg-gradient-to-r from-sky-200 to-blue-200 px-4 py-3 font-medium text-blue-950 transition hover:from-sky-300 hover:to-blue-300 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {composing ? "프롬프트 분석 중…" : "프롬프트 생성"}
+            </button>
+            {composeError && (
+              <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">
+                {composeError.message}
+              </p>
+            )}
           </div>
 
-          {CARD_GROUPS.map((group) => (
-            <div key={group.aggregateKey} className="flex flex-col gap-2">
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <div className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-center text-xs font-medium text-gray-500">
-                  종합
-                </div>
-                <div className="col-span-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-center text-xs font-medium text-gray-500 sm:col-span-3">
-                  개별
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <Card tone="aggregate">
-                  <ImageDropField
-                    label={`${group.aggregateEmoji} ${group.aggregateLabel}`}
-                    hint={group.aggregateHint}
-                    tone="aggregate"
-                    file={styleFiles[group.aggregateKey] ?? null}
-                    preview={stylePreviews[group.aggregateKey] ?? null}
-                    onChange={(file) => handleStyleChange(group.aggregateKey, file)}
+          {/* RIGHT: prompt review + generate */}
+          <div className="flex flex-col gap-3 rounded-2xl border border-sky-100 bg-white/80 p-4">
+            <h2 className="text-base font-bold text-blue-950">최종 프롬프트</h2>
+
+            {composedSections == null ? (
+              <p className="text-sm text-gray-400">
+                왼쪽에서 이미지를 첨부하고 카테고리를 선택한 뒤 &ldquo;프롬프트 생성&rdquo;을 눌러주세요.
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs font-medium text-gray-500">한국어</p>
+                  <textarea
+                    readOnly
+                    value={koreanPrompt}
+                    className="h-28 w-full resize-none rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700"
                   />
-                </Card>
-                {group.individual.map((card) => (
-                  <Card key={card.key} tone="reference">
-                    <ImageDropField
-                      label={`${card.emoji} ${card.label}`}
-                      hint={card.hint}
-                      tone="reference"
-                      file={styleFiles[card.key] ?? null}
-                      preview={stylePreviews[card.key] ?? null}
-                      onChange={(file) => handleStyleChange(card.key, file)}
-                    />
-                  </Card>
-                ))}
-              </div>
-            </div>
-          ))}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs font-medium text-gray-500">English</p>
+                  <textarea
+                    readOnly
+                    value={englishPrompt}
+                    className="h-28 w-full resize-none rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700"
+                  />
+                </div>
+              </>
+            )}
 
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="rounded-xl bg-gradient-to-r from-sky-200 to-blue-200 px-4 py-3 font-medium text-blue-950 transition hover:from-sky-300 hover:to-blue-300 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {loading ? "생성 중… (이미지에 따라 최대 4~5분 정도 걸릴 수 있어요)" : "이미지 생성"}
-          </button>
-        </form>
-
-        {error && (
-          <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">
-            {error.message}
-          </p>
-        )}
+            <button
+              type="button"
+              onClick={handleGenerateFinal}
+              disabled={!productFile || composedSections == null || loading}
+              className="mt-auto rounded-xl bg-blue-900 px-4 py-3 font-medium text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {loading ? "생성 중… (이미지에 따라 최대 4~5분 정도 걸릴 수 있어요)" : "이미지 생성"}
+            </button>
+            {!productFile && <p className="text-xs text-gray-400">제품 사진을 먼저 첨부해주세요.</p>}
+            {generateError && (
+              <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">
+                {generateError.message}
+              </p>
+            )}
+          </div>
+        </div>
 
         {resultUrl && (
           <div className="flex flex-col gap-3 rounded-2xl border border-sky-100 bg-white/90 p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={resultUrl} alt="생성된 이미지" className="w-full rounded-xl" />
+            <img src={resultUrl} alt="생성된 이미지" className="mx-auto max-h-[70vh] rounded-xl" />
 
             <div>
               <p className="mb-1 text-xs font-medium text-gray-500">점수 매기기</p>

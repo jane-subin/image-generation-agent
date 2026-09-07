@@ -1,37 +1,17 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-import { describeCard, generateComposite, type PromptSection } from "@/lib/openai";
-import { supabaseAdmin, RESULTS_BUCKET, fetchGoodExamples } from "@/lib/supabase";
-import { ALL_STYLE_CARDS, fieldNameFor, type StyleCardKey } from "@/lib/cardConfig";
+import { generateComposite, buildComposePrompt, type PromptSection } from "@/lib/openai";
+import { supabaseAdmin, RESULTS_BUCKET } from "@/lib/supabase";
+import { errorResponse, validateImageField } from "@/lib/validateImage";
 
 export const runtime = "nodejs";
-// Up to 8 parallel vision calls (per-card analysis) plus the final
-// high-quality image edit) plus a Supabase upload can vary a lot in latency.
-// Set close to Vercel's Hobby-plan-with-Fluid-Compute ceiling (300s) for headroom.
+// A single high-quality gpt-image-2 edit call plus a Supabase upload can vary
+// in latency. Set close to Vercel's Hobby-plan-with-Fluid-Compute ceiling
+// (300s) for headroom.
 export const maxDuration = 280;
 
-// Per-file and combined caps keep the multipart body well under Vercel's 4.5MB
-// hard request-body limit now that up to 7 images can be attached at once.
-const MAX_FILE_BYTES = 1.5 * 1024 * 1024;
-const MAX_TOTAL_BYTES = 4 * 1024 * 1024;
-
-function errorResponse(code: string, message: string, status: number) {
-  return NextResponse.json({ error: { code, message } }, { status });
-}
-
-function validateImageField(file: FormDataEntryValue | null, label: string) {
-  if (!(file instanceof File)) {
-    return errorResponse("MISSING_IMAGE", `${label} 이미지를 첨부해주세요.`, 400);
-  }
-  if (!file.type.startsWith("image/")) {
-    return errorResponse("INVALID_FILE_TYPE", "이미지 파일만 업로드할 수 있습니다.", 400);
-  }
-  if (file.size > MAX_FILE_BYTES) {
-    return errorResponse("FILE_TOO_LARGE", `${label} 이미지는 1.5MB 이하로 업로드해주세요.`, 413);
-  }
-  return null;
-}
-
+// The vision analysis already happened in POST /api/compose — this route only
+// takes the product photo plus the already-computed sections and generates.
 export async function POST(req: Request) {
   if (!process.env.OPENAI_API_KEY) {
     return errorResponse("SERVER_MISCONFIGURED", "OPENAI_API_KEY가 설정되지 않았습니다.", 500);
@@ -55,33 +35,22 @@ export async function POST(req: Request) {
   if (productError) return productError;
   const productFile = productImage as File;
 
-  const styleFiles: { key: StyleCardKey; label: string; file: File }[] = [];
-  for (const card of ALL_STYLE_CARDS) {
-    const entry = form.get(fieldNameFor(card.key));
-    if (entry == null) continue;
-    const err = validateImageField(entry, card.label);
-    if (err) return err;
-    styleFiles.push({ key: card.key, label: card.label, file: entry as File });
-  }
-
-  const totalBytes = productFile.size + styleFiles.reduce((sum, s) => sum + s.file.size, 0);
-  if (totalBytes > MAX_TOTAL_BYTES) {
-    return errorResponse(
-      "FILE_TOO_LARGE",
-      "첨부한 이미지들의 합산 용량이 너무 큽니다. 이미지 수를 줄이거나 더 작은 이미지로 시도해주세요.",
-      413,
-    );
+  let sections: PromptSection[] = [];
+  const sectionsRaw = form.get("sections");
+  if (typeof sectionsRaw === "string" && sectionsRaw.length > 0) {
+    try {
+      const parsed = JSON.parse(sectionsRaw);
+      if (Array.isArray(parsed)) sections = parsed;
+    } catch {
+      return errorResponse("INVALID_SECTIONS", "sections 형식이 올바르지 않습니다.", 400);
+    }
   }
 
   try {
-    const sections: PromptSection[] = await Promise.all(
-      styleFiles.map(async ({ key, label, file }) => {
-        const goodExamples = await fetchGoodExamples(key).catch(() => []);
-        return { key, label, text: await describeCard(file, key, goodExamples) };
-      }),
-    );
-
-    const imageBuffer = await generateComposite(productFile, sections);
+    // Rebuilt server-side from the structured sections — never trusts a
+    // client-supplied prompt string for the actual generation call.
+    const prompt = buildComposePrompt(sections);
+    const imageBuffer = await generateComposite(productFile, prompt);
 
     const path = `${randomUUID()}.png`;
     const { error: uploadError } = await supabaseAdmin()
@@ -94,9 +63,6 @@ export async function POST(req: Request) {
 
     const { data } = supabaseAdmin().storage.from(RESULTS_BUCKET).getPublicUrl(path);
 
-    // Not logged to the `generations` table here — the result is only persisted
-    // if/when the user explicitly clicks 저장 on the main page (see POST
-    // /api/generations). Clicking 휴지통 instead leaves no record at all.
     return NextResponse.json({ imageUrl: data.publicUrl, sections });
   } catch (err: unknown) {
     const e = err as { status?: number; error?: { message?: string }; message?: string };

@@ -52,3 +52,19 @@ export const ALL_STYLE_CARDS: { key: StyleCardKey; label: string }[] = [
   ...STANDALONE_CARDS,
   ...CARD_GROUPS.flatMap((group) => [{ key: group.aggregateKey, label: group.aggregateLabel }, ...group.individual]),
 ];
+
+// key -> label lookup, so the server can determine a section's display label
+// from a category key sent by the client without trusting client-sent text.
+export const CATEGORY_LABEL: Record<StyleCardKey, string> = Object.fromEntries(
+  ALL_STYLE_CARDS.map((c) => [c.key, c.label]),
+) as Record<StyleCardKey, string>;
+
+// The 8 categories selectable as tags on a reference-image slot (everything
+// except `placement`, which keeps its own dedicated standalone card).
+export const SELECTABLE_CATEGORIES: { key: StyleCardKey; label: string; emoji: string }[] =
+  CARD_GROUPS.flatMap((group) => [
+    { key: group.aggregateKey, label: group.aggregateLabel, emoji: group.aggregateEmoji },
+    ...group.individual.map((c) => ({ key: c.key, label: c.label, emoji: c.emoji })),
+  ]);
+
+export const REFERENCE_SLOT_COUNT = 4;
