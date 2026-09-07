@@ -7,38 +7,16 @@ import { CARD_GROUPS, fieldNameFor, type StyleCardKey } from "@/lib/cardConfig";
 type ApiError = { code: string; message: string };
 type Tone = "product" | "reference" | "aggregate";
 
-const TONE_CLASSES: Record<
-  Tone,
-  { label: string; border: string; placeholder: string; box: string; fileBg: string; fileText: string; fileHoverBg: string }
-> = {
-  product: {
-    label: "text-slate-700",
-    border: "border-slate-300",
-    placeholder: "text-slate-300",
-    box: "bg-slate-50/70",
-    fileBg: "bg-slate-100",
-    fileText: "text-slate-700",
-    fileHoverBg: "hover:bg-slate-200",
-  },
-  reference: {
-    label: "text-blue-900",
-    border: "border-sky-200",
-    placeholder: "text-gray-400",
-    box: "bg-white/80",
-    fileBg: "bg-sky-100",
-    fileText: "text-blue-800",
-    fileHoverBg: "hover:bg-sky-200",
-  },
-  aggregate: {
-    label: "text-emerald-900",
-    border: "border-emerald-200",
-    placeholder: "text-emerald-300",
-    box: "bg-emerald-50/50",
-    fileBg: "bg-emerald-100",
-    fileText: "text-emerald-800",
-    fileHoverBg: "hover:bg-emerald-200",
-  },
+const TONE_CLASSES: Record<Tone, { label: string; border: string; box: string }> = {
+  product: { label: "text-blue-900", border: "border-blue-200", box: "bg-blue-100/70" },
+  reference: { label: "text-blue-900", border: "border-sky-200", box: "bg-sky-50/70" },
+  aggregate: { label: "text-emerald-900", border: "border-emerald-200", box: "bg-emerald-50/70" },
 };
+
+function Card({ tone, children }: { tone: Tone; children: React.ReactNode }) {
+  const c = TONE_CLASSES[tone];
+  return <div className={`rounded-2xl border ${c.border} ${c.box} p-4`}>{children}</div>;
+}
 
 function ImageDropField({
   label,
@@ -60,23 +38,20 @@ function ImageDropField({
     <label className="flex flex-col gap-2">
       <span className={`text-base font-medium ${c.label}`}>{label}</span>
       {hint && <span className="-mt-1 text-xs text-gray-400">{hint}</span>}
-      <div
-        className={`flex h-36 items-center justify-center overflow-hidden rounded-xl border border-dashed ${c.border} ${c.box}`}
-      >
+      <div className="flex h-36 items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white/70">
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={preview} alt={label} className="h-full w-full object-contain" />
         ) : (
-          <span className={`text-sm ${c.placeholder}`}>클릭해서 이미지 선택</span>
+          <span className="text-sm text-gray-400">클릭해서 이미지 선택</span>
         )}
       </div>
       <input
         type="file"
         accept="image/*"
-        className={`text-sm text-gray-400 file:mr-3 file:rounded-md file:border-0 ${c.fileBg} file:px-3 file:py-1.5 ${c.fileText} ${c.fileHoverBg}`}
+        className="sr-only"
         onChange={(e) => onChange(e.target.files?.[0] ?? null)}
       />
-      {file && <span className="text-xs text-gray-400">{file.name}</span>}
     </label>
   );
 }
@@ -174,7 +149,7 @@ export default function Home() {
         </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-8">
-          <div className={`rounded-2xl border ${TONE_CLASSES.product.border} ${TONE_CLASSES.product.box} p-4`}>
+          <Card tone="product">
             <ImageDropField
               label="제품 사진 (필수)"
               tone="product"
@@ -182,33 +157,40 @@ export default function Home() {
               preview={productPreview}
               onChange={handleProductChange}
             />
-          </div>
+          </Card>
 
           {CARD_GROUPS.map((group) => (
             <div key={group.aggregateKey} className="flex flex-col gap-2">
-              <div className="flex gap-4 text-xs font-medium">
-                <span className="basis-1/4 text-emerald-600">종합</span>
-                <span className="text-gray-400">개별</span>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-center text-xs font-medium text-emerald-600">
+                  종합
+                </div>
+                <div className="col-span-1 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-center text-xs font-medium text-gray-500 sm:col-span-3">
+                  개별
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <ImageDropField
-                  label={group.aggregateLabel}
-                  hint={group.aggregateHint}
-                  tone="aggregate"
-                  file={styleFiles[group.aggregateKey] ?? null}
-                  preview={stylePreviews[group.aggregateKey] ?? null}
-                  onChange={(file) => handleStyleChange(group.aggregateKey, file)}
-                />
-                {group.individual.map((card) => (
+                <Card tone="aggregate">
                   <ImageDropField
-                    key={card.key}
-                    label={card.label}
-                    hint={card.hint}
-                    tone="reference"
-                    file={styleFiles[card.key] ?? null}
-                    preview={stylePreviews[card.key] ?? null}
-                    onChange={(file) => handleStyleChange(card.key, file)}
+                    label={group.aggregateLabel}
+                    hint={group.aggregateHint}
+                    tone="aggregate"
+                    file={styleFiles[group.aggregateKey] ?? null}
+                    preview={stylePreviews[group.aggregateKey] ?? null}
+                    onChange={(file) => handleStyleChange(group.aggregateKey, file)}
                   />
+                </Card>
+                {group.individual.map((card) => (
+                  <Card key={card.key} tone="reference">
+                    <ImageDropField
+                      label={card.label}
+                      hint={card.hint}
+                      tone="reference"
+                      file={styleFiles[card.key] ?? null}
+                      preview={stylePreviews[card.key] ?? null}
+                      onChange={(file) => handleStyleChange(card.key, file)}
+                    />
+                  </Card>
                 ))}
               </div>
             </div>
