@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { describeCard, generateComposite, type PromptSection } from "@/lib/openai";
-import { supabaseAdmin, RESULTS_BUCKET } from "@/lib/supabase";
+import { supabaseAdmin, RESULTS_BUCKET, GENERATIONS_TABLE, fetchGoodExamples } from "@/lib/supabase";
 import { ALL_STYLE_CARDS, fieldNameFor, type StyleCardKey } from "@/lib/cardConfig";
 
 export const runtime = "nodejs";
@@ -75,10 +75,10 @@ export async function POST(req: Request) {
 
   try {
     const sections: PromptSection[] = await Promise.all(
-      styleFiles.map(async ({ key, label, file }) => ({
-        label,
-        text: await describeCard(file, key),
-      })),
+      styleFiles.map(async ({ key, label, file }) => {
+        const goodExamples = await fetchGoodExamples(key).catch(() => []);
+        return { key, label, text: await describeCard(file, key, goodExamples) };
+      }),
     );
 
     const imageBuffer = await generateComposite(productFile, sections);
@@ -93,6 +93,16 @@ export async function POST(req: Request) {
     }
 
     const { data } = supabaseAdmin().storage.from(RESULTS_BUCKET).getPublicUrl(path);
+
+    // Best-effort history log — a logging failure shouldn't fail the user's request.
+    await supabaseAdmin()
+      .from(GENERATIONS_TABLE)
+      .insert({ image_url: data.publicUrl, sections, score: null })
+      .then(
+        () => {},
+        () => {},
+      );
+
     return NextResponse.json({ imageUrl: data.publicUrl, sections });
   } catch (err: unknown) {
     const e = err as { status?: number; error?: { message?: string }; message?: string };

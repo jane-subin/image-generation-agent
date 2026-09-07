@@ -71,13 +71,23 @@ async function fileToDataUrl(file: File): Promise<string> {
   return `data:${file.type};base64,${base64}`;
 }
 
-export async function describeCard(file: File, category: StyleCardKey): Promise<string> {
+export async function describeCard(
+  file: File,
+  category: StyleCardKey,
+  goodExamples: string[] = [],
+): Promise<string> {
   const dataUrl = await fileToDataUrl(file);
+
+  const exampleBlock = goodExamples.length
+    ? `\n\n[참고: 과거 이 카테고리에서 높은 평가를 받았던 묘사 예시 — 내용은 반드시 지금 첨부된 사진에 맞게 새로 작성하고, 아래는 스타일과 디테일 수준만 참고하라]\n${goodExamples
+        .map((ex, i) => `예시 ${i + 1}: ${ex}`)
+        .join("\n")}`
+    : "";
 
   const response = await client().chat.completions.create({
     model: VISION_MODEL,
     messages: [
-      { role: "system", content: CATEGORY_SYSTEM_PROMPTS[category] },
+      { role: "system", content: CATEGORY_SYSTEM_PROMPTS[category] + exampleBlock },
       {
         role: "user",
         content: [
@@ -106,7 +116,7 @@ const REALISM_KEYWORDS = [
   "film grain/noise",
 ];
 
-export type PromptSection = { label: string; text: string };
+export type PromptSection = { key: StyleCardKey; label: string; text: string };
 
 function buildComposePrompt(sections: PromptSection[]): string {
   const sceneBlock = sections.length
