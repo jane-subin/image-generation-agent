@@ -19,15 +19,26 @@ const SCORES = Array.from({ length: 10 }, (_, i) => i + 1);
 export default function GenerationsList({ view }: { view: View }) {
   const [items, setItems] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadError(null);
     fetch(`/api/generations?view=${view}`)
-      .then((res) => res.json())
-      .then((json) => {
-        if (!cancelled) setItems(json.generations ?? []);
+      .then(async (res) => {
+        const json = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          setLoadError(json.error?.message ?? "목록을 불러오지 못했습니다.");
+          setItems([]);
+          return;
+        }
+        setItems(json.generations ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError("서버에 연결할 수 없습니다.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -69,6 +80,14 @@ export default function GenerationsList({ view }: { view: View }) {
 
   if (loading) {
     return <p className="text-sm text-gray-400">불러오는 중…</p>;
+  }
+
+  if (loadError) {
+    return (
+      <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">
+        {loadError}
+      </p>
+    );
   }
 
   if (items.length === 0) {
