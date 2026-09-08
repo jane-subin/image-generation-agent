@@ -55,6 +55,17 @@ export default function GenerationsList({ view }: { view: View }) {
     });
   }
 
+  async function handleDownload(imageUrl: string) {
+    const res = await fetch(imageUrl);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = "generated.png";
+    a.click();
+    URL.revokeObjectURL(blobUrl);
+  }
+
   if (loading) {
     return <p className="text-sm text-gray-400">불러오는 중…</p>;
   }
@@ -118,13 +129,22 @@ export default function GenerationsList({ view }: { view: View }) {
               ))}
             </div>
 
-            <button
-              type="button"
-              onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-              className="self-start text-xs font-medium text-blue-600 underline"
-            >
-              {expandedId === item.id ? "프롬프트 접기" : "프롬프트 보기"}
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                className="rounded-md border border-sky-200 bg-white px-2 py-1 text-xs font-medium text-blue-800 hover:bg-sky-50"
+              >
+                {expandedId === item.id ? "프롬프트 접기" : "프롬프트 보기"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownload(item.image_url)}
+                className="rounded-md border border-sky-200 bg-white px-2 py-1 text-xs font-medium text-blue-800 hover:bg-sky-50"
+              >
+                이미지 저장
+              </button>
+            </div>
 
             {expandedId === item.id && (
               <div className="flex flex-col gap-1 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
