@@ -10,7 +10,7 @@ export async function GET(req: Request) {
 
   let query = supabaseAdmin()
     .from(GENERATIONS_TABLE)
-    .select("id, created_at, image_url, sections, score")
+    .select("id, created_at, image_url, prompt, sections, score")
     .order("created_at", { ascending: false });
 
   if (view === "trash") {
@@ -37,12 +37,19 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const imageUrl = body?.imageUrl;
+  const prompt = body?.prompt;
   const sections = (body?.sections ?? []) as PromptSection[];
   const score = Number(body?.score);
 
   if (typeof imageUrl !== "string" || !imageUrl) {
     return NextResponse.json(
       { error: { code: "MISSING_IMAGE_URL", message: "imageUrl이 필요합니다." } },
+      { status: 400 },
+    );
+  }
+  if (typeof prompt !== "string" || !prompt.trim()) {
+    return NextResponse.json(
+      { error: { code: "MISSING_PROMPT", message: "prompt가 필요합니다." } },
       { status: 400 },
     );
   }
@@ -55,7 +62,7 @@ export async function POST(req: Request) {
 
   const { data, error } = await supabaseAdmin()
     .from(GENERATIONS_TABLE)
-    .insert({ image_url: imageUrl, sections, score })
+    .insert({ image_url: imageUrl, prompt, sections, score })
     .select("id")
     .single();
 

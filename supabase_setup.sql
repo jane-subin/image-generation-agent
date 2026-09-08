@@ -22,3 +22,7 @@ create index if not exists section_examples_category_score_idx
 
 -- Added for soft-delete (sidebar Trash section)
 alter table generations add column if not exists deleted_at timestamptz;
+
+-- Added to store the actual (possibly user-edited) final prompt text,
+-- instead of only the per-category sections breakdown.
+alter table generations add column if not exists prompt text;

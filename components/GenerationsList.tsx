@@ -9,6 +9,7 @@ type Generation = {
   id: string;
   created_at: string;
   image_url: string;
+  prompt: string | null;
   sections: Section[];
   score: number | null;
 };
@@ -147,10 +148,13 @@ export default function GenerationsList({ view }: { view: View }) {
             </div>
 
             {expandedId === item.id && (
-              <div className="flex flex-col gap-1 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
-                {item.sections.length === 0 ? (
+              <div className="rounded-lg bg-gray-50 p-3 text-xs whitespace-pre-wrap text-gray-600">
+                {item.prompt ? (
+                  item.prompt
+                ) : item.sections.length === 0 ? (
                   <span>추가 카드 없이 제품 사진만으로 생성됨</span>
                 ) : (
+                  // Legacy rows saved before the prompt column existed.
                   item.sections.map((s) => (
                     <p key={s.key}>
                       <span className="font-medium text-gray-800">{s.label}:</span> {s.text}

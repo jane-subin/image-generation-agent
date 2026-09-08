@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { resizeImageFile } from "@/lib/resizeImage";
 import { SELECTABLE_CATEGORIES, REFERENCE_SLOT_COUNT, type StyleCardKey } from "@/lib/cardConfig";
 
@@ -107,8 +106,6 @@ function makeEmptySlots(): ReferenceSlot[] {
 }
 
 export default function Home() {
-  const router = useRouter();
-
   const [productFile, setProductFile] = useState<File | null>(null);
   const [productPreview, setProductPreview] = useState<string | null>(null);
 
@@ -125,6 +122,7 @@ export default function Home() {
   const [resultSections, setResultSections] = useState<Section[]>([]);
   const [pendingScore, setPendingScore] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   function resetCompose() {
     setComposedSections(null);
@@ -137,6 +135,7 @@ export default function Home() {
     setResultSections([]);
     setPendingScore(null);
     setGenerateError(null);
+    setSaved(false);
   }
 
   function handleProductChange(file: File | null) {
@@ -256,18 +255,24 @@ export default function Home() {
     if (!resultUrl || pendingScore == null) return;
     setSaving(true);
     setGenerateError(null);
+    setSaved(false);
     try {
       const res = await fetch("/api/generations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: resultUrl, sections: resultSections, score: pendingScore }),
+        body: JSON.stringify({
+          imageUrl: resultUrl,
+          prompt: koreanPrompt,
+          sections: resultSections,
+          score: pendingScore,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
         setGenerateError(json.error ?? { code: "UNKNOWN", message: "저장에 실패했습니다." });
         return;
       }
-      router.push(pendingScore >= 8 ? "/gallery/best" : "/gallery/all");
+      setSaved(true);
     } catch {
       setGenerateError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
     } finally {
@@ -424,9 +429,10 @@ export default function Home() {
                 disabled={pendingScore == null || saving}
                 className="rounded-xl bg-blue-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {saving ? "저장 중…" : "저장"}
+                {saving ? "저장 중…" : "갤러리에 저장"}
               </button>
             </div>
+            {saved && <p className="text-xs font-medium text-emerald-600">저장 완료되었습니다.</p>}
             {pendingScore == null && (
               <p className="text-xs text-gray-400">저장하려면 먼저 점수를 선택해주세요.</p>
             )}
