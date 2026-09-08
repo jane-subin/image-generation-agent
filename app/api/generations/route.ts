@@ -13,8 +13,13 @@ export async function GET(req: Request) {
     .select("id, created_at, image_url, sections, score")
     .order("created_at", { ascending: false });
 
-  if (view === "best") {
-    query = query.gte("score", 8);
+  if (view === "trash") {
+    query = query.not("deleted_at", "is", null);
+  } else {
+    query = query.is("deleted_at", null);
+    if (view === "best") {
+      query = query.gte("score", 8);
+    }
   }
 
   const { data, error } = await query;
