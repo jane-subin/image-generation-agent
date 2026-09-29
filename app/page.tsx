@@ -11,6 +11,13 @@ type ReferenceSlot = { file: File | null; preview: string | null; categories: St
 
 const SCORES = Array.from({ length: 10 }, (_, i) => i + 1);
 
+const REFRAME_INSTRUCTION = `[리프레이밍 지침]
+이 사진은 완벽하게 구도를 맞추지 않고, 급하게 찍힌 듯한 자연스러운 스냅샷처럼 연출하라.
+- 살짝 기울어진 핸드헬드 촬영처럼, 수평/수직이 완벽하게 맞지 않게 하라.
+- 피사체를 프레임 중앙에 배치하지 말고 한쪽으로 치우치게 배치하라. 상하좌우 여백이 균등하지 않게 하라.
+- 제품의 형태, 색상, 디자인은 원본 그대로 유지하되, 오직 구도와 프레이밍만 위 지침대로 흐트러뜨려라.
+금지: 중앙 정렬, 균등한 여백, 완벽하게 수평인 구도, 피사체가 프레임 안에 전부 깔끔하게 들어간 구도, 인위적이고 정돈된 AI 특유의 구도.`;
+
 const TONE_CLASSES: Record<Tone, { label: string; border: string; box: string }> = {
   product: { label: "text-blue-900", border: "border-blue-200", box: "bg-blue-100/70" },
   reference: { label: "text-blue-900", border: "border-sky-200", box: "bg-sky-50/70" },
@@ -105,6 +112,125 @@ function makeEmptySlots(): ReferenceSlot[] {
   }));
 }
 
+function ResultCard({
+  title,
+  imageUrl,
+  sections,
+  prompt,
+  onReframe,
+  reframing,
+}: {
+  title: string;
+  imageUrl: string;
+  sections: Section[];
+  prompt: string;
+  onReframe?: () => void;
+  reframing?: boolean;
+}) {
+  const [pendingScore, setPendingScore] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<ApiError | null>(null);
+
+  async function handleDownload() {
+    const res = await fetch(imageUrl);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = "generated.png";
+    a.click();
+    URL.revokeObjectURL(blobUrl);
+  }
+
+  async function handleSave() {
+    if (pendingScore == null) return;
+    setSaving(true);
+    setSaveError(null);
+    setSaved(false);
+    try {
+      const res = await fetch("/api/generations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl, prompt, sections, score: pendingScore }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSaveError(json.error ?? { code: "UNKNOWN", message: "저장에 실패했습니다." });
+        return;
+      }
+      setSaved(true);
+    } catch {
+      setSaveError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-sky-100 bg-white/90 p-4">
+      <p className="text-sm font-semibold text-blue-900">{title}</p>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={imageUrl} alt={title} className="mx-auto max-h-[70vh] rounded-xl" />
+
+      <div>
+        <p className="mb-1 text-xs font-medium text-gray-500">점수 매기기</p>
+        <div className="flex flex-wrap gap-1">
+          {SCORES.map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setPendingScore(n)}
+              className={`h-7 w-7 rounded-md text-xs font-medium transition ${
+                pendingScore === n ? "bg-blue-900 text-white" : "bg-sky-50 text-blue-800 hover:bg-sky-100"
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={handleDownload}
+          className="rounded-xl bg-gradient-to-r from-cyan-100 to-sky-200 px-4 py-2 text-sm font-medium text-blue-950 transition hover:from-cyan-200 hover:to-sky-300"
+        >
+          이미지 다운로드
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={pendingScore == null || saving}
+          className="rounded-xl bg-blue-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {saving ? "저장 중…" : "갤러리에 저장"}
+        </button>
+        {onReframe && (
+          <button
+            type="button"
+            onClick={onReframe}
+            disabled={reframing}
+            className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:border-blue-200 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {reframing ? "리프레이밍 중…" : "리프레이밍"}
+          </button>
+        )}
+      </div>
+      {saved && <p className="text-xs font-medium text-emerald-600">저장 완료되었습니다.</p>}
+      {pendingScore == null && (
+        <p className="text-xs text-gray-400">저장하려면 먼저 점수를 선택해주세요.</p>
+      )}
+      {saveError && (
+        <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">
+          {saveError.message}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function Home() {
   const [productFile, setProductFile] = useState<File | null>(null);
   const [productPreview, setProductPreview] = useState<string | null>(null);
@@ -120,9 +246,12 @@ export default function Home() {
   const [generateError, setGenerateError] = useState<ApiError | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [resultSections, setResultSections] = useState<Section[]>([]);
-  const [pendingScore, setPendingScore] = useState<number | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+
+  const [reframing, setReframing] = useState(false);
+  const [reframeError, setReframeError] = useState<ApiError | null>(null);
+  const [reframedUrl, setReframedUrl] = useState<string | null>(null);
+  const [reframedSections, setReframedSections] = useState<Section[]>([]);
+  const [reframedPrompt, setReframedPrompt] = useState("");
 
   function resetCompose() {
     setComposedSections(null);
@@ -133,9 +262,12 @@ export default function Home() {
   function resetResult() {
     setResultUrl(null);
     setResultSections([]);
-    setPendingScore(null);
     setGenerateError(null);
-    setSaved(false);
+    setReframing(false);
+    setReframeError(null);
+    setReframedUrl(null);
+    setReframedSections([]);
+    setReframedPrompt("");
   }
 
   function handleProductChange(file: File | null) {
@@ -213,7 +345,7 @@ export default function Home() {
 
     setLoading(true);
     setGenerateError(null);
-    setResultUrl(null);
+    resetResult();
 
     try {
       const resizedProduct = await resizeImageFile(productFile);
@@ -239,44 +371,35 @@ export default function Home() {
     }
   }
 
-  async function handleDownload() {
-    if (!resultUrl) return;
-    const res = await fetch(resultUrl);
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = "generated.png";
-    a.click();
-    URL.revokeObjectURL(blobUrl);
-  }
+  async function handleReframe() {
+    if (!productFile || !resultUrl) return;
 
-  async function handleSave() {
-    if (!resultUrl || pendingScore == null) return;
-    setSaving(true);
-    setGenerateError(null);
-    setSaved(false);
+    setReframing(true);
+    setReframeError(null);
+
     try {
-      const res = await fetch("/api/generations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: resultUrl,
-          prompt: koreanPrompt,
-          sections: resultSections,
-          score: pendingScore,
-        }),
-      });
+      const resizedProduct = await resizeImageFile(productFile);
+      const nextPrompt = `${koreanPrompt}\n\n${REFRAME_INSTRUCTION}`;
+
+      const body = new FormData();
+      body.append("productImage", resizedProduct);
+      body.append("prompt", nextPrompt);
+      body.append("sections", JSON.stringify(resultSections));
+
+      const res = await fetch("/api/generate", { method: "POST", body });
       const json = await res.json();
+
       if (!res.ok) {
-        setGenerateError(json.error ?? { code: "UNKNOWN", message: "저장에 실패했습니다." });
+        setReframeError(json.error ?? { code: "UNKNOWN", message: "리프레이밍에 실패했습니다." });
         return;
       }
-      setSaved(true);
+      setReframedUrl(json.imageUrl);
+      setReframedSections(json.sections ?? []);
+      setReframedPrompt(nextPrompt);
     } catch {
-      setGenerateError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
+      setReframeError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
     } finally {
-      setSaving(false);
+      setReframing(false);
     }
   }
 
@@ -391,50 +514,27 @@ export default function Home() {
         </div>
 
         {resultUrl && (
-          <div className="flex flex-col gap-3 rounded-2xl border border-sky-100 bg-white/90 p-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={resultUrl} alt="생성된 이미지" className="mx-auto max-h-[70vh] rounded-xl" />
-
-            <div>
-              <p className="mb-1 text-xs font-medium text-gray-500">점수 매기기</p>
-              <div className="flex flex-wrap gap-1">
-                {SCORES.map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setPendingScore(n)}
-                    className={`h-7 w-7 rounded-md text-xs font-medium transition ${
-                      pendingScore === n
-                        ? "bg-blue-900 text-white"
-                        : "bg-sky-50 text-blue-800 hover:bg-sky-100"
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="rounded-xl bg-gradient-to-r from-cyan-100 to-sky-200 px-4 py-2 text-sm font-medium text-blue-950 transition hover:from-cyan-200 hover:to-sky-300"
-              >
-                이미지 다운로드
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={pendingScore == null || saving}
-                className="rounded-xl bg-blue-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {saving ? "저장 중…" : "갤러리에 저장"}
-              </button>
-            </div>
-            {saved && <p className="text-xs font-medium text-emerald-600">저장 완료되었습니다.</p>}
-            {pendingScore == null && (
-              <p className="text-xs text-gray-400">저장하려면 먼저 점수를 선택해주세요.</p>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ResultCard
+              title="원본"
+              imageUrl={resultUrl}
+              sections={resultSections}
+              prompt={koreanPrompt}
+              onReframe={handleReframe}
+              reframing={reframing}
+            />
+            {reframeError && (
+              <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">
+                {reframeError.message}
+              </p>
+            )}
+            {reframedUrl && (
+              <ResultCard
+                title="리프레이밍"
+                imageUrl={reframedUrl}
+                sections={reframedSections}
+                prompt={reframedPrompt}
+              />
             )}
           </div>
         )}
