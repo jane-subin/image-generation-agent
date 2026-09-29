@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-import { generateComposite, type PromptSection } from "@/lib/openai";
+import type { PromptSection } from "@/lib/openai";
+import { generateComposite } from "@/lib/gemini";
 import { supabaseAdmin, RESULTS_BUCKET } from "@/lib/supabase";
 import { errorResponse, validateImageField } from "@/lib/validateImage";
 
 export const runtime = "nodejs";
-// A single high-quality gpt-image-2 edit call plus a Supabase upload can vary
+// A single high-quality Gemini image call plus a Supabase upload can vary
 // in latency. Set close to Vercel's Hobby-plan-with-Fluid-Compute ceiling
 // (300s) for headroom.
 export const maxDuration = 280;
@@ -13,8 +14,8 @@ export const maxDuration = 280;
 // The vision analysis already happened in POST /api/compose — this route only
 // takes the product photo plus the already-computed sections and generates.
 export async function POST(req: Request) {
-  if (!process.env.OPENAI_API_KEY) {
-    return errorResponse("SERVER_MISCONFIGURED", "OPENAI_API_KEY가 설정되지 않았습니다.", 500);
+  if (!process.env.GEMINI_API_KEY) {
+    return errorResponse("SERVER_MISCONFIGURED", "GEMINI_API_KEY가 설정되지 않았습니다.", 500);
   }
   const missingSupabaseVars = [
     !process.env.NEXT_PUBLIC_SUPABASE_URL && "NEXT_PUBLIC_SUPABASE_URL",
@@ -76,10 +77,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ imageUrl: data.publicUrl, sections });
   } catch (err: unknown) {
-    const e = err as { status?: number; error?: { message?: string }; message?: string };
+    const e = err as { status?: number; message?: string };
     const status = typeof e?.status === "number" ? e.status : 502;
-    const message = e?.error?.message ?? e?.message ?? "이미지 생성 중 오류가 발생했습니다.";
-    const code = /safety|policy|moderation/i.test(message) ? "CONTENT_POLICY" : "OPENAI_ERROR";
+    const message = e?.message ?? "이미지 생성 중 오류가 발생했습니다.";
+    const code = /safety|policy|moderation|blocked/i.test(message) ? "CONTENT_POLICY" : "GEMINI_ERROR";
     return errorResponse(code, message, status === 401 ? 500 : status);
   }
 }

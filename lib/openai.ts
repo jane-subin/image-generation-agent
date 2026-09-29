@@ -12,7 +12,6 @@ function client(): OpenAI {
 }
 
 const VISION_MODEL = process.env.OPENAI_VISION_MODEL ?? "gpt-5.6-luna";
-const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2";
 
 const SHARED_GUARD = `이 사진 속 인물이 들고 있거나 착용한 가방·캐리어 등 '제품'으로 보이는 물건이 있어도, 그 물건의 디자인·색상·형태·브랜드·재질은 절대 설명하지 마라 (실제 제품은 별도 사진으로 제공된다).
 모든 문장은 단정적으로 서술하라 — "~인 것으로 보인다", "~로 추정된다", "알 수 없다" 같은 불확실한 표현은 절대 쓰지 마라.
@@ -130,25 +129,3 @@ export function buildComposePrompt(sections: PromptSection[]): string {
 ${sceneBlock}`;
 }
 
-export async function generateComposite(productFile: File, prompt: string): Promise<Buffer> {
-  const params: OpenAI.ImageEditParamsNonStreaming = {
-    model: IMAGE_MODEL,
-    image: productFile,
-    prompt,
-    n: 1,
-    // 3:4 portrait ratio at a higher resolution for more detail. gpt-image-2
-    // requires both edges to be multiples of 16; 1536x2048 = exactly 3:4.
-    size: "1536x2048",
-    quality: "high",
-    // gpt-image-2 has no input_fidelity knob (always high-fidelity) and rejects the
-    // field if set; only gpt-image-1 needs this explicitly set to "high".
-    input_fidelity: IMAGE_MODEL === "gpt-image-1" ? "high" : undefined,
-  };
-
-  const response = await client().images.edit(params);
-  const b64 = response.data?.[0]?.b64_json;
-  if (!b64) {
-    throw new Error("이미지 생성에 실패했습니다.");
-  }
-  return Buffer.from(b64, "base64");
-}
