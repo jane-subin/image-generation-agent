@@ -12,11 +12,11 @@ type ReferenceSlot = { file: File | null; preview: string | null; categories: St
 const SCORES = Array.from({ length: 10 }, (_, i) => i + 1);
 
 const REFRAME_INSTRUCTION = `[리프레이밍 지침]
-이 사진은 완벽하게 구도를 맞추지 않고, 급하게 찍힌 듯한 자연스러운 스냅샷처럼 연출하라.
-- 살짝 기울어진 핸드헬드 촬영처럼, 수평/수직이 완벽하게 맞지 않게 하라.
-- 피사체를 프레임 중앙에 배치하지 말고 한쪽으로 치우치게 배치하라. 상하좌우 여백이 균등하지 않게 하라.
-- 제품의 형태, 색상, 디자인은 원본 그대로 유지하되, 오직 구도와 프레이밍만 위 지침대로 흐트러뜨려라.
-금지: 중앙 정렬, 균등한 여백, 완벽하게 수평인 구도, 피사체가 프레임 안에 전부 깔끔하게 들어간 구도, 인위적이고 정돈된 AI 특유의 구도.`;
+제품의 형태, 색상, 디자인, 로고는 원본과 완전히 동일하게 유지하라 — 오직 카메라 각도와 프레임 내 위치만 바꿔라.
+이 사진은 전문적으로 세팅된 화보컷이 아니라, 사람이 순간적으로 찍은 듯한 날것의 스냅샷처럼 보여야 한다. 아래를 프레이밍에 반드시, 눈에 띄게 적용하라:
+- 카메라가 완전히 수평이 아니라 5~15도 정도 기울어진 채로 찍힌 것처럼 하라 (더치 앵글).
+- 제품을 프레임 정중앙이 아니라 화면 좌측 또는 우측 1/3 지점으로 확실히 치우치게 배치하라.
+- 상하좌우 여백을 절대 균등하게 만들지 말고, 한쪽은 넓고 한쪽은 좁게 비대칭으로 구성하라.`;
 
 const TONE_CLASSES: Record<Tone, { label: string; border: string; box: string }> = {
   product: { label: "text-blue-900", border: "border-blue-200", box: "bg-blue-100/70" },
@@ -372,18 +372,24 @@ export default function Home() {
   }
 
   async function handleReframe() {
-    if (!productFile || !resultUrl) return;
+    if (!resultUrl) return;
 
     setReframing(true);
     setReframeError(null);
 
     try {
-      const resizedProduct = await resizeImageFile(productFile);
-      const nextPrompt = `${koreanPrompt}\n\n${REFRAME_INSTRUCTION}`;
+      // Re-edits the already-generated result image itself (not the original
+      // product photo), using only the standalone reframing instruction as the
+      // prompt — so this is "take this exact shot and re-angle it", not a
+      // fresh regeneration from the original inputs.
+      const sourceRes = await fetch(resultUrl);
+      const sourceBlob = await sourceRes.blob();
+      const sourceFile = new File([sourceBlob], "source.png", { type: sourceBlob.type || "image/png" });
+      const resizedSource = await resizeImageFile(sourceFile);
 
       const body = new FormData();
-      body.append("productImage", resizedProduct);
-      body.append("prompt", nextPrompt);
+      body.append("productImage", resizedSource);
+      body.append("prompt", REFRAME_INSTRUCTION);
       body.append("sections", JSON.stringify(resultSections));
 
       const res = await fetch("/api/generate", { method: "POST", body });
@@ -395,7 +401,7 @@ export default function Home() {
       }
       setReframedUrl(json.imageUrl);
       setReframedSections(json.sections ?? []);
-      setReframedPrompt(nextPrompt);
+      setReframedPrompt(REFRAME_INSTRUCTION);
     } catch {
       setReframeError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
     } finally {
