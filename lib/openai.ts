@@ -123,6 +123,11 @@ export function buildComposePrompt(sections: PromptSection[]): string {
 
   return `첨부된 제품 사진 속 제품을 정확히 그대로 활용하여, 포토리얼리스틱한 화보/광고 사진 한 장을 생성하라.
 
+[제품 노출 최우선 규칙]
+제품은 반드시 프레임 안에 전체 형태가 온전히 보여야 하며, 어떤 가장자리에도 닿거나 잘려서는 안 된다.
+제품의 모든 외곽선은 프레임 네 변의 가장자리에서 최소 8% 이상 안쪽에 위치해야 한다.
+아래 장면 설정의 위치·구도 지시가 이 규칙과 충돌하면, 이 규칙을 우선하라.
+
 이미지에 들어갈 묘사 - vellus hair, subsurface scattering, micro-imperfections, natural lighting, depth of field, film grain, 실제 고화질 촬영 사진. 사실적인 사진.
 
 [장면 설정]
