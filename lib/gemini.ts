@@ -38,10 +38,16 @@ export async function generateComposite(productFile: File, prompt: string): Prom
     },
   });
 
+  // Gemini 3 Pro Image emits up to two interim "thought" images (rough
+  // composition drafts) before the final render, so the FIRST image part is
+  // often a draft with cropped/unbalanced framing. The final render is the
+  // last non-thought image part.
   const parts = response.candidates?.[0]?.content?.parts ?? [];
-  const imagePart = parts.find((p) => p.inlineData?.data);
-  if (!imagePart?.inlineData?.data) {
+  const imageParts = parts.filter((p) => p.inlineData?.data);
+  const finalPart =
+    [...imageParts].reverse().find((p) => !p.thought) ?? imageParts[imageParts.length - 1];
+  if (!finalPart?.inlineData?.data) {
     throw new Error("이미지 생성에 실패했습니다.");
   }
-  return Buffer.from(imagePart.inlineData.data, "base64");
+  return Buffer.from(finalPart.inlineData.data, "base64");
 }
