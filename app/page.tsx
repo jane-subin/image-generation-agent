@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { resizeImageFile } from "@/lib/resizeImage";
 import { SELECTABLE_CATEGORIES, REFERENCE_SLOT_COUNT, type StyleCardKey } from "@/lib/cardConfig";
 
@@ -120,15 +120,11 @@ function ResultCard({
   imageUrl,
   sections,
   prompt,
-  onReframe,
-  reframing,
 }: {
   title: string;
   imageUrl: string;
   sections: Section[];
   prompt: string;
-  onReframe?: () => void;
-  reframing?: boolean;
 }) {
   const [pendingScore, setPendingScore] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -210,16 +206,6 @@ function ResultCard({
         >
           {saving ? "저장 중…" : "갤러리에 저장"}
         </button>
-        {onReframe && (
-          <button
-            type="button"
-            onClick={onReframe}
-            disabled={reframing}
-            className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:border-blue-200 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {reframing ? "리프레이밍 중…" : "리프레이밍"}
-          </button>
-        )}
       </div>
       {saved && <p className="text-xs font-medium text-emerald-600">저장 완료되었습니다.</p>}
       {pendingScore == null && (
@@ -256,6 +242,10 @@ export default function Home() {
   const [reframedSections, setReframedSections] = useState<Section[]>([]);
   const [reframedPrompt, setReframedPrompt] = useState("");
 
+  // Guards against a stale in-flight reframe (from a previous run) writing its
+  // result after the user has already started over.
+  const runId = useRef(0);
+
   function resetCompose() {
     setComposedSections(null);
     setKoreanPrompt("");
@@ -263,6 +253,7 @@ export default function Home() {
   }
 
   function resetResult() {
+    runId.current += 1;
     setResultUrl(null);
     setResultSections([]);
     setGenerateError(null);
@@ -349,6 +340,7 @@ export default function Home() {
     setLoading(true);
     setGenerateError(null);
     resetResult();
+    const myRun = runId.current;
 
     try {
       const resizedProduct = await resizeImageFile(productFile);
@@ -367,6 +359,10 @@ export default function Home() {
       }
       setResultUrl(json.imageUrl);
       setResultSections(json.sections ?? []);
+      setLoading(false);
+      // The reframe needs the finished base image, so it starts right after it
+      // and fills in on the right while the base image is already viewable.
+      await runReframe(json.imageUrl, json.sections ?? [], myRun);
     } catch {
       setGenerateError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
     } finally {
@@ -374,9 +370,7 @@ export default function Home() {
     }
   }
 
-  async function handleReframe() {
-    if (!resultUrl) return;
-
+  async function runReframe(sourceUrl: string, sections: Section[], myRun: number) {
     setReframing(true);
     setReframeError(null);
 
@@ -385,7 +379,7 @@ export default function Home() {
       // product photo), using only the standalone reframing instruction as the
       // prompt — so this is "take this exact shot and re-angle it", not a
       // fresh regeneration from the original inputs.
-      const sourceRes = await fetch(resultUrl);
+      const sourceRes = await fetch(sourceUrl);
       const sourceBlob = await sourceRes.blob();
       const sourceFile = new File([sourceBlob], "source.png", { type: sourceBlob.type || "image/png" });
       const resizedSource = await resizeImageFile(sourceFile);
@@ -393,10 +387,11 @@ export default function Home() {
       const body = new FormData();
       body.append("productImage", resizedSource);
       body.append("prompt", REFRAME_INSTRUCTION);
-      body.append("sections", JSON.stringify(resultSections));
+      body.append("sections", JSON.stringify(sections));
 
       const res = await fetch("/api/generate", { method: "POST", body });
       const json = await res.json();
+      if (runId.current !== myRun) return;
 
       if (!res.ok) {
         setReframeError(json.error ?? { code: "UNKNOWN", message: "리프레이밍에 실패했습니다." });
@@ -406,9 +401,10 @@ export default function Home() {
       setReframedSections(json.sections ?? []);
       setReframedPrompt(REFRAME_INSTRUCTION);
     } catch {
+      if (runId.current !== myRun) return;
       setReframeError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
     } finally {
-      setReframing(false);
+      if (runId.current === myRun) setReframing(false);
     }
   }
 
@@ -529,21 +525,37 @@ export default function Home() {
               imageUrl={resultUrl}
               sections={resultSections}
               prompt={koreanPrompt}
-              onReframe={handleReframe}
-              reframing={reframing}
             />
-            {reframeError && (
-              <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">
-                {reframeError.message}
-              </p>
-            )}
-            {reframedUrl && (
+            {reframedUrl ? (
               <ResultCard
                 title="리프레이밍"
                 imageUrl={reframedUrl}
                 sections={reframedSections}
                 prompt={reframedPrompt}
               />
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-sky-200 bg-white/60 p-6 text-center">
+                <p className="text-sm font-semibold text-blue-900">리프레이밍</p>
+                {reframing && (
+                  <p className="text-sm text-gray-500">
+                    원본 이미지를 리프레이밍하는 중… (1~2분 정도 걸릴 수 있어요)
+                  </p>
+                )}
+                {reframeError && (
+                  <>
+                    <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">
+                      {reframeError.message}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => runReframe(resultUrl, resultSections, runId.current)}
+                      className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:border-blue-200 hover:text-blue-800"
+                    >
+                      다시 시도
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
         )}
