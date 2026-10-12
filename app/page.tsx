@@ -11,15 +11,53 @@ type ReferenceSlot = { file: File | null; preview: string | null; categories: St
 
 const SCORES = Array.from({ length: 10 }, (_, i) => i + 1);
 
-const REFRAME_INSTRUCTION = `[리프레이밍 지침]
+const REFRAME_HEAD = `[리프레이밍 지침]
 제품의 형태, 색상, 디자인, 로고와 인물의 얼굴·외모·의상은 원본과 완전히 동일하게 유지하라 — 바꿀 것은 인물의 포즈, 카메라 각도, 프레임 내 위치뿐이다.
-이 사진은 전문적으로 세팅된 화보컷이 아니라, 사람이 순간적으로 찍은 듯한 날것의 스냅샷처럼 보여야 한다. 아래를 반드시, 눈에 띄게 적용하라:
-- [가장 중요] 인물의 포즈를 원본과 확실히 다르게 바꿔라 — 같은 자세를 반복하지 말고, 몸의 방향, 팔과 손의 위치, 고개 각도, 시선을 모두 다르게 하여 촬영 중 움직이다 다른 순간에 찍힌 듯한 자연스러운 자세로 연출하라.
-- 카메라가 완전히 수평이 아니라 5~15도 정도 기울어진 채로 찍힌 것처럼 하라 (더치 앵글).
-- 제품을 프레임 정중앙이 아니라 화면 좌측 또는 우측 1/3 지점으로 확실히 치우치게 배치하라.
-- 상하좌우 여백을 절대 균등하게 만들지 말고, 한쪽은 넓고 한쪽은 좁게 비대칭으로 구성하라.
-- 카메라와 제품 사이의 촬영 거리를 원본 사진과 다르게 바꿔라 — 원본보다 눈에 띄게 가깝게 줌인. (제품을 중심으로 줌인)
-- 촬영 각도 자체도 원본과 다르게 하라 — 위에서 내려다보는 하이앵글이나 아래에서 올려다보는 로우앵글 등, 원본과 분명히 구분되는 시점에서 찍은 것처럼 연출하라.`;
+이 사진은 전문적으로 세팅된 화보컷이 아니라, 사람이 순간적으로 찍은 듯한 날것의 스냅샷처럼 보여야 한다. 아래를 반드시, 눈에 띄게 적용하라:`;
+
+const REFRAME_POSE = `- [가장 중요] 인물의 포즈를 원본과 확실히 다르게 바꿔라 — 같은 자세를 반복하지 말고, 몸의 방향, 팔과 손의 위치, 고개 각도, 시선을 모두 다르게 하여 촬영 중 움직이다 다른 순간에 찍힌 듯한 자연스러운 자세로 연출하라.`;
+const REFRAME_TILT = `- 카메라가 완전히 수평이 아니라 5~15도 정도 기울어진 채로 찍힌 것처럼 하라 (더치 앵글).`;
+const REFRAME_OFFCENTER = `- 제품을 프레임 정중앙이 아니라 화면 좌측 또는 우측 1/3 지점으로 확실히 치우치게 배치하라.`;
+const REFRAME_ASYMMETRY = `- 상하좌우 여백을 절대 균등하게 만들지 말고, 한쪽은 넓고 한쪽은 좁게 비대칭으로 구성하라.`;
+const REFRAME_ZOOM = `- 카메라와 제품 사이의 촬영 거리를 원본 사진과 다르게 바꿔라 — 원본보다 눈에 띄게 가깝게 줌인. (제품을 중심으로 줌인)`;
+
+const REFRAME_RAW = `[날것의 느낌 추가 지침]
+1. 완벽한 순간을 피한다 — 정면을 보고 웃는 표정 금지, 완벽하게 균형 잡힌 포즈 금지. 동작의 중간, 살짝 균형이 무너진 순간으로 연출하고 시선은 카메라를 아예 보지 않게 하라.
+2. 프레이밍을 일부러 허술하게 — 중앙 정렬 금지. 살짝 기운 핸드헬드로 찍은 듯하게, 인물의 일부가 프레임에 잘리게, 머리 위에 쓸데없는 빈 공간을 두라.
+3. 사람과 옷에 흠집을 남긴다 — 모공, 불균일한 피부톤, 홍조, 잔털, 삐져나온 머리카락, 구겨지고 입던 느낌의 옷, 말려 올라간 밑단을 표현하라.
+4. 인위적인 빛/조명 금지 — 역광, 골든 림라이트 같은 연출된 조명을 쓰지 마라.`;
+
+const REFRAME_VARIANTS = [
+  {
+    title: "리프레이밍 1",
+    prompt: [
+      REFRAME_HEAD,
+      REFRAME_POSE,
+      REFRAME_TILT,
+      REFRAME_OFFCENTER,
+      REFRAME_ASYMMETRY,
+      REFRAME_ZOOM,
+      `- [리프레이밍 1 핵심] 인물의 얼굴이 프레임에 전혀 보이지 않는 구도로 찍어라 — 얼굴은 프레임 밖으로 완전히 나가거나 가려져야 한다.
+- [리프레이밍 1 핵심] 촬영 각도는 위나 아래가 아닌 정면(눈높이)이어야 하며, 카메라 자체를 눈에 띄게 기울인 컷으로 연출하라. 기울어진 카메라 각도가 이 컷에서 가장 중요한 요소다.
+- [리프레이밍 1 핵심] 카메라가 제품(캐리어) 쪽으로 확실히 줌인하여, 제품이 프레임의 약 1/3을 차지하게 하라.`,
+      REFRAME_RAW,
+    ].join("\n"),
+  },
+  {
+    title: "리프레이밍 2",
+    prompt: [
+      REFRAME_HEAD,
+      REFRAME_POSE,
+      REFRAME_TILT,
+      REFRAME_OFFCENTER,
+      REFRAME_ASYMMETRY,
+      REFRAME_ZOOM,
+      `- [리프레이밍 2 핵심] 모델의 얼굴은 프레임에 보이게 하되, 원본 생성 이미지와 확연히 다른 포즈와 시선으로 바꿔라 — 완전히 다른 포즈여야 하며, 원본과 비슷한 자세나 시선은 허용하지 않는다.
+- [리프레이밍 2 핵심] 촬영 각도는 원본보다 더 아래에서 올려다보며 찍은 로우앵글로 연출하라.`,
+      REFRAME_RAW,
+    ].join("\n"),
+  },
+];
 
 const TONE_CLASSES: Record<Tone, { label: string; border: string; box: string }> = {
   product: { label: "text-blue-900", border: "border-blue-200", box: "bg-blue-100/70" },
@@ -105,6 +143,18 @@ function ImageDropField({
       />
     </label>
   );
+}
+
+type ReframeState = {
+  loading: boolean;
+  error: ApiError | null;
+  url: string | null;
+  sections: Section[];
+  prompt: string;
+};
+
+function makeEmptyReframes(): ReframeState[] {
+  return REFRAME_VARIANTS.map(() => ({ loading: false, error: null, url: null, sections: [], prompt: "" }));
 }
 
 function makeEmptySlots(): ReferenceSlot[] {
@@ -236,11 +286,7 @@ export default function Home() {
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [resultSections, setResultSections] = useState<Section[]>([]);
 
-  const [reframing, setReframing] = useState(false);
-  const [reframeError, setReframeError] = useState<ApiError | null>(null);
-  const [reframedUrl, setReframedUrl] = useState<string | null>(null);
-  const [reframedSections, setReframedSections] = useState<Section[]>([]);
-  const [reframedPrompt, setReframedPrompt] = useState("");
+  const [reframes, setReframes] = useState<ReframeState[]>(makeEmptyReframes());
 
   // Guards against a stale in-flight reframe (from a previous run) writing its
   // result after the user has already started over.
@@ -257,11 +303,7 @@ export default function Home() {
     setResultUrl(null);
     setResultSections([]);
     setGenerateError(null);
-    setReframing(false);
-    setReframeError(null);
-    setReframedUrl(null);
-    setReframedSections([]);
-    setReframedPrompt("");
+    setReframes(makeEmptyReframes());
   }
 
   function handleProductChange(file: File | null) {
@@ -360,9 +402,11 @@ export default function Home() {
       setResultUrl(json.imageUrl);
       setResultSections(json.sections ?? []);
       setLoading(false);
-      // The reframe needs the finished base image, so it starts right after it
-      // and fills in on the right while the base image is already viewable.
-      await runReframe(json.imageUrl, json.sections ?? [], myRun);
+      // The reframes need the finished base image, so both start right after it
+      // (in parallel) and fill in beside the base image, which is already viewable.
+      await Promise.all(
+        REFRAME_VARIANTS.map((_, i) => runReframe(i, json.imageUrl, json.sections ?? [], myRun)),
+      );
     } catch {
       setGenerateError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
     } finally {
@@ -370,9 +414,13 @@ export default function Home() {
     }
   }
 
-  async function runReframe(sourceUrl: string, sections: Section[], myRun: number) {
-    setReframing(true);
-    setReframeError(null);
+  function patchReframe(index: number, patch: Partial<ReframeState>) {
+    setReframes((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  }
+
+  async function runReframe(index: number, sourceUrl: string, sections: Section[], myRun: number) {
+    patchReframe(index, { loading: true, error: null });
+    const instruction = REFRAME_VARIANTS[index].prompt;
 
     try {
       // Re-edits the already-generated result image itself (not the original
@@ -386,7 +434,7 @@ export default function Home() {
 
       const body = new FormData();
       body.append("productImage", resizedSource);
-      body.append("prompt", REFRAME_INSTRUCTION);
+      body.append("prompt", instruction);
       body.append("sections", JSON.stringify(sections));
 
       const res = await fetch("/api/generate", { method: "POST", body });
@@ -394,23 +442,30 @@ export default function Home() {
       if (runId.current !== myRun) return;
 
       if (!res.ok) {
-        setReframeError(json.error ?? { code: "UNKNOWN", message: "리프레이밍에 실패했습니다." });
+        patchReframe(index, {
+          loading: false,
+          error: json.error ?? { code: "UNKNOWN", message: "리프레이밍에 실패했습니다." },
+        });
         return;
       }
-      setReframedUrl(json.imageUrl);
-      setReframedSections(json.sections ?? []);
-      setReframedPrompt(REFRAME_INSTRUCTION);
+      patchReframe(index, {
+        loading: false,
+        url: json.imageUrl,
+        sections: json.sections ?? [],
+        prompt: instruction,
+      });
     } catch {
       if (runId.current !== myRun) return;
-      setReframeError({ code: "NETWORK", message: "서버에 연결할 수 없습니다." });
-    } finally {
-      if (runId.current === myRun) setReframing(false);
+      patchReframe(index, {
+        loading: false,
+        error: { code: "NETWORK", message: "서버에 연결할 수 없습니다." },
+      });
     }
   }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-cyan-50 px-4 py-6">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4">
         <div className="py-8">
           <h1 className="text-2xl font-bold text-blue-950">이미지 생성 에이전트</h1>
           <p className="mt-2 text-sm text-gray-500">
@@ -519,44 +574,51 @@ export default function Home() {
         </div>
 
         {resultUrl && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <ResultCard
               title="원본"
               imageUrl={resultUrl}
               sections={resultSections}
               prompt={koreanPrompt}
             />
-            {reframedUrl ? (
-              <ResultCard
-                title="리프레이밍"
-                imageUrl={reframedUrl}
-                sections={reframedSections}
-                prompt={reframedPrompt}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-sky-200 bg-white/60 p-6 text-center">
-                <p className="text-sm font-semibold text-blue-900">리프레이밍</p>
-                {reframing && (
-                  <p className="text-sm text-gray-500">
-                    원본 이미지를 리프레이밍하는 중… (1~2분 정도 걸릴 수 있어요)
-                  </p>
-                )}
-                {reframeError && (
-                  <>
-                    <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">
-                      {reframeError.message}
+            {REFRAME_VARIANTS.map((variant, i) => {
+              const r = reframes[i];
+              return r.url ? (
+                <ResultCard
+                  key={variant.title}
+                  title={variant.title}
+                  imageUrl={r.url}
+                  sections={r.sections}
+                  prompt={r.prompt}
+                />
+              ) : (
+                <div
+                  key={variant.title}
+                  className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-sky-200 bg-white/60 p-6 text-center"
+                >
+                  <p className="text-sm font-semibold text-blue-900">{variant.title}</p>
+                  {r.loading && (
+                    <p className="text-sm text-gray-500">
+                      원본 이미지를 리프레이밍하는 중… (1~2분 정도 걸릴 수 있어요)
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => runReframe(resultUrl, resultSections, runId.current)}
-                      className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:border-blue-200 hover:text-blue-800"
-                    >
-                      다시 시도
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+                  )}
+                  {r.error && (
+                    <>
+                      <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">
+                        {r.error.message}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => runReframe(i, resultUrl, resultSections, runId.current)}
+                        className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:border-blue-200 hover:text-blue-800"
+                      >
+                        다시 시도
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
