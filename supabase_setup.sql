@@ -26,3 +26,8 @@ alter table generations add column if not exists deleted_at timestamptz;
 -- Added to store the actual (possibly user-edited) final prompt text,
 -- instead of only the per-category sections breakdown.
 alter table generations add column if not exists prompt text;
+
+-- Added for drag-to-reorder in the gallery. Null = never reordered (newest
+-- items sort first); otherwise ascending order.
+alter table generations add column if not exists position double precision;
+notify pgrst, 'reload schema';

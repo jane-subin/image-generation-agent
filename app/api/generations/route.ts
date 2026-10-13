@@ -4,14 +4,19 @@ import type { PromptSection } from "@/lib/openai";
 
 export const runtime = "nodejs";
 
-export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const view = url.searchParams.get("view") ?? (url.searchParams.get("best") === "1" ? "best" : "all");
-
+// Gallery order: never-reordered items (position is null) first, newest first,
+// then manually positioned items ascending. `position` may not exist yet if
+// the migration hasn't been run, so fall back to plain newest-first.
+function buildQuery(view: string, withPosition: boolean) {
   let query = supabaseAdmin()
     .from(GENERATIONS_TABLE)
-    .select("id, created_at, image_url, prompt, sections, score")
-    .order("created_at", { ascending: false });
+    .select(
+      withPosition
+        ? "id, created_at, image_url, prompt, sections, score, position"
+        : "id, created_at, image_url, prompt, sections, score",
+    );
+  if (withPosition) query = query.order("position", { ascending: true, nullsFirst: true });
+  query = query.order("created_at", { ascending: false });
 
   if (view === "trash") {
     query = query.not("deleted_at", "is", null);
@@ -21,8 +26,17 @@ export async function GET(req: Request) {
       query = query.gte("score", 8);
     }
   }
+  return query;
+}
 
-  const { data, error } = await query;
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const view = url.searchParams.get("view") ?? (url.searchParams.get("best") === "1" ? "best" : "all");
+
+  let { data, error } = await buildQuery(view, true);
+  if (error && /position/i.test(error.message)) {
+    ({ data, error } = await buildQuery(view, false));
+  }
   if (error) {
     return NextResponse.json(
       { error: { code: "STORAGE_ERROR", message: `기록을 불러오지 못했습니다: ${error.message}` } },
