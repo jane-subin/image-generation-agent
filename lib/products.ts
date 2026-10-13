@@ -1,7 +1,11 @@
 // Product lines whose original photos are kept in the IMAGE menu. `id` is the
 // ASCII Storage folder name / route segment (Korean names are not safe as
 // object keys).
-export const PRODUCT_GROUPS = [
+export type Product = { id: string; name: string };
+export type ProductId = string;
+export type ProductGroup = { id: string; name: string; products: Product[] };
+
+export const PRODUCT_GROUPS: ProductGroup[] = [
   {
     id: "carrier",
     name: "캐리어",
@@ -23,11 +27,9 @@ export const PRODUCT_GROUPS = [
       { id: "flex", name: "플렉스" },
     ],
   },
-] as const;
+];
 
-export const PRODUCTS = PRODUCT_GROUPS.flatMap((g) => g.products);
-
-export type ProductId = (typeof PRODUCTS)[number]["id"];
+export const PRODUCTS: Product[] = PRODUCT_GROUPS.flatMap((g) => g.products);
 
 export const PRODUCT_IMAGES_PREFIX = "product-images";
 
