@@ -586,7 +586,7 @@ export default function Home() {
                 <textarea
                   value={koreanPrompt}
                   onChange={(e) => setKoreanPrompt(e.target.value)}
-                  className="w-full min-h-0 flex-1 resize-none rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700"
+                  className="w-full min-h-0 flex-1 resize-none rounded-lg border border-gray-200 bg-gray-50 p-2 text-sm text-gray-700"
                 />
               </div>
             )}

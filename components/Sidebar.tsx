@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PRODUCT_GROUPS } from "@/lib/products";
 
-const ITEM = "rounded-lg px-3 py-2 text-sm font-medium text-blue-900 hover:bg-sky-50";
-const SUB_ITEM = "rounded-lg px-3 py-2 text-xs font-medium text-gray-400 hover:bg-sky-50";
+const ITEM = "rounded-lg px-3 py-2 text-[16px] font-medium text-blue-900 hover:bg-sky-50";
+const SUB_ITEM = "rounded-lg px-3 py-2 text-[14px] font-medium text-gray-400 hover:bg-sky-50";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -15,12 +15,12 @@ export default function Sidebar() {
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
 
   return (
-    <aside className="w-56 shrink-0 border-r border-sky-100 bg-white/60 p-6">
-      <Link href="/" className="text-base font-bold text-blue-950">
+    <aside className="w-60 shrink-0 border-r border-sky-100 bg-white/60 p-6">
+      <Link href="/" className="text-[18px] font-bold text-blue-950">
         이미지 생성 에이전트
       </Link>
 
-      <p className="mt-8 text-xs font-semibold uppercase tracking-wide text-gray-400">Image</p>
+      <p className="mt-8 text-[14px] font-semibold uppercase tracking-wide text-gray-400">Image</p>
       <nav className="mt-2 flex flex-col gap-1">
         {PRODUCT_GROUPS.map((group) => {
           const hasActive = group.products.some((p) => pathname === `/images/${p.id}`);
@@ -34,7 +34,7 @@ export default function Sidebar() {
                 className={`flex items-center justify-between text-left ${ITEM}`}
               >
                 {group.name}
-                <span className={`text-xl leading-none text-gray-300 transition-transform ${expanded ? "rotate-180" : ""}`}>
+                <span className={`text-[22px] leading-none text-gray-300 transition-transform ${expanded ? "rotate-180" : ""}`}>
                   ▾
                 </span>
               </button>
@@ -61,7 +61,7 @@ export default function Sidebar() {
 
       <hr className="mt-6 border-t border-gray-200" />
 
-      <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-gray-400">Gallery</p>
+      <p className="mt-6 text-[14px] font-semibold uppercase tracking-wide text-gray-400">Gallery</p>
       <nav className="mt-2 flex flex-col gap-1">
         <Link href="/gallery/all" className={ITEM}>
           All
@@ -71,7 +71,7 @@ export default function Sidebar() {
         </Link>
         <Link
           href="/gallery/trash"
-          className="rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-sky-50"
+          className="rounded-lg px-3 py-2 text-[16px] font-medium text-gray-500 hover:bg-sky-50"
         >
           휴지통
         </Link>
