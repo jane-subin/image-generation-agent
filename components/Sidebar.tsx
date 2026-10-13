@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PRODUCT_GROUPS } from "@/lib/products";
 
-const ITEM = "rounded-lg px-3 py-2 text-[14px] font-medium text-blue-900 hover:bg-sky-50";
-const SUB_ITEM = "rounded-lg px-3 py-2 text-[14px] font-normal text-gray-400 hover:bg-sky-50";
+const ITEM = "rounded-lg px-3 py-2 text-[14px] font-semibold text-blue-900 hover:bg-sky-50";
+const SUB_ITEM = "rounded-lg px-3 py-2 text-[14px] font-normal text-gray-500 hover:bg-sky-50";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -46,7 +46,7 @@ export default function Sidebar() {
                       <Link
                         key={p.id}
                         href={`/images/${p.id}`}
-                        className={`${SUB_ITEM} ${active ? "bg-sky-100 text-gray-500" : ""}`}
+                        className={`${SUB_ITEM} ${active ? "bg-sky-100 text-gray-700" : ""}`}
                       >
                         {p.name}
                       </Link>
@@ -71,7 +71,7 @@ export default function Sidebar() {
         </Link>
         <Link
           href="/gallery/trash"
-          className="rounded-lg px-3 py-2 text-[14px] font-medium text-gray-500 hover:bg-sky-50"
+          className="rounded-lg px-3 py-2 text-[14px] font-semibold text-gray-500 hover:bg-sky-50"
         >
           휴지통
         </Link>
