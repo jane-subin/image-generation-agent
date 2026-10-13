@@ -21,9 +21,6 @@ export default function GenerationsList({ view }: { view: View }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ id: string; side: "before" | "after" } | null>(null);
-  const [orderError, setOrderError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,43 +67,6 @@ export default function GenerationsList({ view }: { view: View }) {
     });
   }
 
-  // Moves the dragged card next to the drop target, then saves the new order.
-  async function handleDrop() {
-    const from = dragId;
-    const target = dropTarget;
-    setDragId(null);
-    setDropTarget(null);
-    if (!from || !target || from === target.id) return;
-
-    const previous = items;
-    const moving = previous.find((it) => it.id === from);
-    if (!moving) return;
-    const rest = previous.filter((it) => it.id !== from);
-    const targetIndex = rest.findIndex((it) => it.id === target.id);
-    if (targetIndex < 0) return;
-    const next = [...rest];
-    next.splice(target.side === "before" ? targetIndex : targetIndex + 1, 0, moving);
-    if (next.every((it, i) => it.id === previous[i].id)) return;
-
-    setItems(next);
-    setOrderError(null);
-    try {
-      const res = await fetch("/api/generations/reorder", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: next.map((it) => it.id) }),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => null);
-        setItems(previous);
-        setOrderError(json?.error?.message ?? "순서를 저장하지 못했습니다.");
-      }
-    } catch {
-      setItems(previous);
-      setOrderError("서버에 연결할 수 없습니다.");
-    }
-  }
-
   async function handleDownload(imageUrl: string) {
     const res = await fetch(imageUrl);
     const blob = await res.blob();
@@ -141,36 +101,9 @@ export default function GenerationsList({ view }: { view: View }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {orderError && (
-        <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">{orderError}</p>
-      )}
-      <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => (
-        <div
-          key={item.id}
-          data-card
-          onDragOver={(e) => {
-            if (!dragId || dragId === item.id) return;
-            e.preventDefault();
-            const rect = e.currentTarget.getBoundingClientRect();
-            const side = e.clientX < rect.left + rect.width / 2 ? "before" : "after";
-            if (dropTarget?.id !== item.id || dropTarget.side !== side) setDropTarget({ id: item.id, side });
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            handleDrop();
-          }}
-          className={`flex flex-col gap-3 rounded-2xl border border-sky-100 bg-white/80 p-4 transition ${
-            dragId === item.id ? "opacity-40" : ""
-          } ${
-            dropTarget?.id === item.id
-              ? dropTarget.side === "before"
-                ? "shadow-[-6px_0_0_0_#60a5fa]"
-                : "shadow-[6px_0_0_0_#60a5fa]"
-              : ""
-          }`}
-        >
+        <div key={item.id} className="flex flex-col gap-3 rounded-2xl border border-sky-100 bg-white/80 p-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={item.image_url}
@@ -179,27 +112,7 @@ export default function GenerationsList({ view }: { view: View }) {
           />
           <div className="flex flex-col gap-2">
             <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span
-                  draggable
-                  title="끌어서 순서 변경"
-                  onDragStart={(e) => {
-                    const card = e.currentTarget.closest("[data-card]");
-                    if (card) e.dataTransfer.setDragImage(card, 24, 24);
-                    e.dataTransfer.effectAllowed = "move";
-                    e.dataTransfer.setData("text/plain", item.id);
-                    setDragId(item.id);
-                  }}
-                  onDragEnd={() => {
-                    setDragId(null);
-                    setDropTarget(null);
-                  }}
-                  className="cursor-grab select-none rounded px-1 text-base leading-none text-gray-300 hover:bg-sky-50 hover:text-gray-500 active:cursor-grabbing"
-                >
-                  ⠿
-                </span>
-                <p className="text-xs text-gray-400">{new Date(item.created_at).toLocaleString("ko-KR")}</p>
-              </div>
+              <p className="text-xs text-gray-400">{new Date(item.created_at).toLocaleString("ko-KR")}</p>
               {view === "trash" ? (
                 <button
                   type="button"
@@ -272,7 +185,6 @@ export default function GenerationsList({ view }: { view: View }) {
           </div>
         </div>
       ))}
-      </div>
     </div>
   );
 }
