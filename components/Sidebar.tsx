@@ -7,7 +7,18 @@ export default function Sidebar() {
         이미지 생성 에이전트
       </Link>
 
-      <p className="mt-8 text-xs font-semibold uppercase tracking-wide text-gray-400">Gallery</p>
+      <nav className="mt-8 flex flex-col gap-1">
+        <Link
+          href="/images"
+          className="rounded-lg px-3 py-2 text-sm font-medium text-blue-900 hover:bg-sky-50"
+        >
+          IMAGE
+        </Link>
+      </nav>
+
+      <hr className="mt-6 border-t border-gray-200" />
+
+      <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-gray-400">Gallery</p>
       <nav className="mt-2 flex flex-col gap-1">
         <Link
           href="/gallery/all"
