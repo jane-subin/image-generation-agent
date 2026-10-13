@@ -21,6 +21,8 @@ export default function GenerationsList({ view }: { view: View }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [emptying, setEmptying] = useState(false);
+  const [emptyError, setEmptyError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +69,31 @@ export default function GenerationsList({ view }: { view: View }) {
     });
   }
 
+  // Permanently deletes everything in the Trash (rows and image files).
+  async function handleEmptyTrash() {
+    const ok = window.confirm(
+      `휴지통의 이미지 ${items.length}장을 영구 삭제합니다.
+삭제한 이미지는 복구할 수 없습니다. 계속할까요?`,
+    );
+    if (!ok) return;
+
+    setEmptying(true);
+    setEmptyError(null);
+    try {
+      const res = await fetch("/api/generations/trash", { method: "DELETE" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        setEmptyError(json?.error?.message ?? "휴지통을 비우지 못했습니다.");
+        return;
+      }
+      setItems([]);
+    } catch {
+      setEmptyError("서버에 연결할 수 없습니다.");
+    } finally {
+      setEmptying(false);
+    }
+  }
+
   async function handleDownload(imageUrl: string) {
     const res = await fetch(imageUrl);
     const blob = await res.blob();
@@ -101,6 +128,23 @@ export default function GenerationsList({ view }: { view: View }) {
   }
 
   return (
+    <div className="flex flex-col gap-4">
+      {view === "trash" && (
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleEmptyTrash}
+            disabled={emptying}
+            className="rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {emptying ? "비우는 중…" : "휴지통 비우기"}
+          </button>
+          <span className="text-sm text-gray-400">{items.length}장 · 비우면 영구 삭제됩니다</span>
+        </div>
+      )}
+      {emptyError && (
+        <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">{emptyError}</p>
+      )}
     <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => (
         <div key={item.id} className="flex flex-col gap-3 rounded-2xl border border-sky-100 bg-white/80 p-4">
@@ -185,6 +229,7 @@ export default function GenerationsList({ view }: { view: View }) {
           </div>
         </div>
       ))}
+    </div>
     </div>
   );
 }
