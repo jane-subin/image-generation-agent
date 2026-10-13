@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { resizeImageFile } from "@/lib/resizeImage";
 import { SELECTABLE_CATEGORIES, REFERENCE_SLOT_COUNT, type StyleCardKey } from "@/lib/cardConfig";
 
@@ -319,6 +319,32 @@ export default function Home() {
     resetResult();
   }
 
+  // The IMAGE menu's "이미지 사용하기" links here as /?image=<storage url>. Fetch
+  // that stored original and drop it into the product-photo slot, then clear
+  // the query so a refresh doesn't re-apply it.
+  const [loadingProduct, setLoadingProduct] = useState(false);
+  const [productLoadError, setProductLoadError] = useState<string | null>(null);
+  useEffect(() => {
+    const imageUrl = new URLSearchParams(window.location.search).get("image");
+    if (!imageUrl) return;
+    window.history.replaceState(null, "", window.location.pathname);
+
+    const storageOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!storageOrigin || !imageUrl.startsWith(`${storageOrigin}/storage/`)) return;
+
+    setLoadingProduct(true);
+    fetch(imageUrl)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("fetch failed");
+        const blob = await res.blob();
+        const ext = imageUrl.split("?")[0].split(".").pop() ?? "jpg";
+        handleProductChange(new File([blob], `product.${ext}`, { type: blob.type || "image/jpeg" }));
+      })
+      .catch(() => setProductLoadError("제품 사진을 불러오지 못했습니다."))
+      .finally(() => setLoadingProduct(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function handleSlotFileChange(index: number, file: File | null) {
     setReferenceSlots((prev) =>
       prev.map((slot, i) =>
@@ -491,6 +517,8 @@ export default function Home() {
                 preview={productPreview}
                 onChange={handleProductChange}
               />
+              {loadingProduct && <p className="mt-2 text-xs text-gray-500">제품 사진을 불러오는 중…</p>}
+              {productLoadError && <p className="mt-2 text-xs text-rose-600">{productLoadError}</p>}
             </Card>
 
             <div className="grid grid-cols-2 gap-3">

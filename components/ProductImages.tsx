@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ProductId } from "@/lib/products";
 
 type StoredImage = { path: string; name: string; url: string };
 
 export default function ProductImages({ id, name }: { id: ProductId; name: string }) {
+  const router = useRouter();
   const [images, setImages] = useState<StoredImage[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -95,18 +97,10 @@ export default function ProductImages({ id, name }: { id: ProductId; name: strin
     }
   }
 
-  // Fetches the stored file as-is, so the saved copy keeps its original
-  // dimensions and file size.
-  async function handleDownload(img: StoredImage, index: number) {
-    const res = await fetch(img.url);
-    const blob = await res.blob();
-    const ext = img.name.split(".").pop() ?? "jpg";
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = `${name}_${index + 1}.${ext}`;
-    a.click();
-    URL.revokeObjectURL(blobUrl);
+  // Hands the stored original over to the agent home, which fetches it and
+  // fills the product-photo slot.
+  function handleUse(img: StoredImage) {
+    router.push(`/?image=${encodeURIComponent(img.url)}`);
   }
 
   return (
@@ -153,10 +147,10 @@ export default function ProductImages({ id, name }: { id: ProductId; name: strin
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => handleDownload(img, i)}
+                  onClick={() => handleUse(img)}
                   className="flex-1 rounded-md border border-sky-200 bg-white px-2 py-1 text-xs font-medium text-blue-800 hover:bg-sky-50"
                 >
-                  원본 다운로드
+                  이미지 사용하기
                 </button>
                 <button
                   type="button"
