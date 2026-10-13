@@ -11,6 +11,7 @@ export default function ProductImages({ id, name }: { id: ProductId; name: strin
   const [images, setImages] = useState<StoredImage[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -105,34 +106,39 @@ export default function ProductImages({ id, name }: { id: ProductId; name: strin
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => fileInput.current?.click()}
-          disabled={uploading}
-          className="rounded-xl border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-blue-800 transition hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {uploading ? "업로드 중…" : "+ 이미지 추가"}
-        </button>
-        {images && <span className="text-sm text-gray-400">{images.length}장</span>}
-        <input
-          ref={fileInput}
-          type="file"
-          accept="image/*"
-          multiple
-          className="sr-only"
-          onChange={(e) => handleUpload(e.target.files)}
-        />
-      </div>
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/*"
+        multiple
+        className="sr-only"
+        onChange={(e) => handleUpload(e.target.files)}
+      />
+
+      {images && <span className="text-sm text-gray-400">{images.length}장</span>}
 
       {error && <p className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-600">{error}</p>}
 
       {loading && !images ? (
         <p className="text-sm text-gray-400">불러오는 중…</p>
-      ) : images && images.length === 0 ? (
-        <p className="text-sm text-gray-400">등록된 이미지가 없습니다. &ldquo;이미지 추가&rdquo;로 올려주세요.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsDragging(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+            handleUpload(e.dataTransfer.files);
+          }}
+          className={`grid grid-cols-2 gap-4 rounded-2xl md:grid-cols-4 ${
+            isDragging ? "outline-dashed outline-2 outline-offset-4 outline-blue-300" : ""
+          }`}
+        >
           {images?.map((img, i) => (
             <div key={img.path} className="flex flex-col gap-2">
               <div className="aspect-square overflow-hidden rounded-xl border border-sky-100 bg-white">
@@ -163,6 +169,24 @@ export default function ProductImages({ id, name }: { id: ProductId; name: strin
               </div>
             </div>
           ))}
+
+          {/* Add card: sits right after the last photo. Click to pick files, or drop files on it (or anywhere on the grid). */}
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            disabled={uploading}
+            className={`flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-center transition disabled:cursor-not-allowed disabled:opacity-60 ${
+              isDragging
+                ? "border-blue-400 bg-blue-50"
+                : "border-sky-300 bg-white/70 hover:border-blue-300 hover:bg-sky-50"
+            }`}
+          >
+            <span className="text-3xl leading-none text-sky-400">+</span>
+            <span className="px-2 text-sm font-medium text-blue-800">
+              {uploading ? "업로드 중…" : "이미지 추가"}
+            </span>
+            {!uploading && <span className="px-2 text-xs text-gray-400">클릭하거나 드래그해서 업로드</span>}
+          </button>
         </div>
       )}
     </div>
