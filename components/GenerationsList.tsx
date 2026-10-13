@@ -101,16 +101,16 @@ export default function GenerationsList({ view }: { view: View }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => (
-        <div key={item.id} className="flex gap-4 rounded-2xl border border-sky-100 bg-white/80 p-4">
+        <div key={item.id} className="flex flex-col gap-3 rounded-2xl border border-sky-100 bg-white/80 p-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={item.image_url}
             alt="생성된 이미지"
-            className="h-32 w-24 shrink-0 rounded-xl object-cover"
+            className="aspect-[3/4] w-full rounded-xl bg-gray-50 object-contain"
           />
-          <div className="flex flex-1 flex-col gap-2">
+          <div className="flex flex-col gap-2">
             <div className="flex items-start justify-between gap-2">
               <p className="text-xs text-gray-400">{new Date(item.created_at).toLocaleString("ko-KR")}</p>
               {view === "trash" ? (
