@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { PRODUCT_GROUPS } from "@/lib/products";
 
 const ITEM = "rounded-lg px-3 py-2 text-sm font-medium text-blue-900 hover:bg-sky-50";
-const SUB_ITEM = "rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-sky-50";
+const SUB_ITEM = "rounded-lg px-3 py-2 text-xs font-medium text-gray-400 hover:bg-sky-50";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -34,7 +34,7 @@ export default function Sidebar() {
                 className={`flex items-center justify-between text-left ${ITEM}`}
               >
                 {group.name}
-                <span className={`text-xl leading-none text-gray-500 transition-transform ${expanded ? "rotate-180" : ""}`}>
+                <span className={`text-xl leading-none text-gray-300 transition-transform ${expanded ? "rotate-180" : ""}`}>
                   ▾
                 </span>
               </button>
@@ -46,7 +46,7 @@ export default function Sidebar() {
                       <Link
                         key={p.id}
                         href={`/images/${p.id}`}
-                        className={`${SUB_ITEM} ${active ? "bg-sky-100 text-gray-700" : ""}`}
+                        className={`${SUB_ITEM} ${active ? "bg-sky-100 text-gray-500" : ""}`}
                       >
                         {p.name}
                       </Link>
